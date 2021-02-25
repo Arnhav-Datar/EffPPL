@@ -1,0 +1,10 @@
+(** @canonical Dune__exe.Diff *)
+module Diff = Dune__exe__Diff
+
+
+(** @canonical Dune__exe.Monad *)
+module Monad = Dune__exe__Monad
+
+
+(** @canonical Dune__exe.Primitive *)
+module Primitive = Dune__exe__Primitive
