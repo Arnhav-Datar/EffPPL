@@ -95,8 +95,9 @@ let normal mu sigma =
     let support = ContinuousInfinite
     let der = ( fun x->
       let s2p = 2.50662827463 in
-      let coeff1 =  Caml.Float.neg (x /. (s2p *. sigma *. sigma *. sigma)) in
-      let coeff2 =  Caml.Float.neg ((x *. x) /. (sigma *. sigma)) in
+      let x' = x -. mu in
+      let coeff1 =  Caml.Float.neg (x' /. (s2p *. sigma *. sigma *. sigma)) in
+      let coeff2 =  Caml.Float.neg ((x' *. x') /. (sigma *. sigma)) in
       (coeff1 *. (Float.exp coeff2))
     )
 
