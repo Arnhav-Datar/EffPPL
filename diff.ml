@@ -49,65 +49,57 @@ struct
 	match f () with
 	| r -> 
 		r.d <- 1.0; 
-		ls := modif_der !ls r.v r.d; 
-		r
+		let ls1 = modif_der ls r.v r.d in
+		(r,ls1)
 	
 	| effect (Add(a,b)) k ->
 		let x = {v = a.v +. b.v; d = 0.; m=1.} in
 		ignore (continue k x);
 		a.d <- a.d +. x.d;
-		print_list !ls;
-		ls := modif_der !ls a.v a.d;
 		b.d <- b.d +. x.d; 
-		print_list !ls;
-		Printf.printf "%f %f\n" b.v b.d;
-		ls := modif_der !ls b.v b.d;
-		print_list !ls;
-		x
+		let ls1 = modif_der ls a.v a.d in
+		let ls2 = modif_der ls1 b.v b.d in
+		(x,ls2)
 	
 	| effect (Sub(a,b)) k ->
 		let x = {v = a.v -. b.v; d = 0.; m=1.} in
 		ignore (continue k x);
 		a.d <- a.d +. x.d;
-		ls := modif_der !ls a.v a.d;
 		b.d <- b.d -. x.d; 
-		ls := modif_der !ls b.v b.d;
-		x
+		let ls1 = modif_der ls a.v a.d in
+		let ls2 = modif_der ls1 b.v b.d in
+		(x,ls2)
 	
 	| effect (Mult(a,b)) k ->
 		let x = {v = a.v *. b.v; d = 0.;  m=1.} in
 		ignore (continue k x);
 		a.d <- a.d +. (b.v *. x.d);
-		ls := modif_der !ls a.v a.d;
 		b.d <- b.d +. (a.v *. x.d);
-		ls := modif_der !ls b.v b.d;
-		x
+		let ls1 = modif_der ls a.v a.d in
+		let ls2 = modif_der ls1 b.v b.d in
+		(x,ls2)	
 	
 	| effect (Div(a,b)) k ->
 		let x = {v = a.v /. b.v; d = 0.;  m=1.} in
 		ignore (continue k x);
 		a.d <- a.d +. (x.d /. b.v);
-		ls := modif_der !ls a.v a.d;
 		b.d <- b.d +. (a.v *. x.d /. (b.v *. b.v));
-		ls := modif_der !ls b.v b.d;
-		x
+		let ls1 = modif_der ls a.v a.d in
+		let ls2 = modif_der ls1 b.v b.d in
+		(x,ls2)
 	
 	| effect (Leet(m,f')) _ ->
 		let x = {v = m.v; d = 0.0; m=m.m} in 
-		(* Printf.printf "Processing %f \n" x.v;   *)
-		ls := !ls @ [x] ;
-		(* print_list !ls; *)
-		let _ = (run (fun () -> f' m) ls) in
-		let d' = find_list x.v !ls in 
+		let (_,ls1) = (run (fun () -> f' m) (ls@[x])) in
+		let d' = find_list x.v ls1 in 
 		x.d <- d';
-		x
+		(x,ls1)
 	
 		
 
-  	let grad f=
-		let ls = ref [] in
-		let x1 = run f ls in 
-		print_list !ls;
+  	let grad f =
+		let (x1,ls) = run f [] in 
+		print_list ls;
 		x1.d
  
   	let (+.) a b = 
