@@ -273,6 +273,10 @@ let logpdf (type a) d x =
   let (module D : PRIM_DIST with type t = a) = d in
   log (D.pdf x)
 
+let logder (type a) d x =
+  let (module D : PRIM_DIST with type t = a) = d in
+  (D.pdf x) /. (D.pdf x)
+
 let cdf (type a) d =
   let (module D : PRIM_DIST with type t = a) = d in
   D.cdf

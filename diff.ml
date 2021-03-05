@@ -9,10 +9,12 @@ module AD : sig
   val ( *. ) : t ->  t ->  t
   val ( /. ) : t ->  t ->  t
   val ( let* ) :  t -> (t -> t ) ->  t
-  val grad  : ( unit ->  t) -> float
+  val grad  : ( unit ->  t) -> t list
   val samp :float Primitive.t ->  t
   val get : t -> float
+  val get_val : ( unit ->  t) -> t list -> float
   val cond: bool -> t -> t -> t
+  (* val log : t -> t *)
   (* val normal : t -> t -> t *)
 
 end = 
@@ -28,6 +30,7 @@ struct
   effect Sub : t * t -> t
   effect Mult : t * t -> t
   effect Div : t * t -> t
+  (* effect Log : t -> t *)
   effect Leet : t * (t -> t) -> t
 
   let rec find_list v ls= match ls with 
@@ -41,11 +44,11 @@ struct
   			else {v=v'; d=d'; m=m'}
   		)  ls
 
-  let rec print_list ls = match ls with 
+  let rec print_list ls vl = match ls with 
   | [] -> print_endline ""
-  | {v = v1; d= d1; m=m1}::tl -> Printf.printf "%f %f " v1 (d1*.m1); print_list tl
+  | {v = v1; d= d1; m=m1}::tl -> Printf.printf "%f %f " v1 (d1*.m1); (print_list tl vl)
 
-  let rec run f ls =
+  let rec run_grad f ls =
 	match f () with
 	| r -> 
 		r.d <- 1.0; 
@@ -90,17 +93,54 @@ struct
 	
 	| effect (Leet(m,f')) _ ->
 		let x = {v = m.v; d = 0.0; m=m.m} in 
-		let (_,ls1) = (run (fun () -> f' m) (ls@[x])) in
+		(* Printf.printf "%f \n" m.v; *)
+		let (x1,ls1) = (run_grad (fun () -> f' m) (ls@[x])) in
+		(* print_list ls1; *)
 		let d' = find_list x.v ls1 in 
 		x.d <- d';
-		(x,ls1)
+		(x1,ls1)
+
+	(* | effect (Log(a)) k ->
+		(* print_string "Hello"; *)
+		let x = {v = (Float.log a.v) ; d = 0.;  m=1.} in
+		Printf.printf "a.v = %f \n" a.v;
+		ignore (continue k x);
+		a.d <- a.d +. (x.d /. a.v);
+		let ls1 = modif_der ls a.v a.d in
+		(x,ls1)	 *)
 	
 		
-
   	let grad f =
-		let (x1,ls) = run f [] in 
-		print_list ls;
-		x1.d
+		let (x1,ls) = run_grad f [] in 
+		print_list ls x1.v;
+		ls
+
+
+
+
+	let rec get_val f ls = 
+	match f () with 
+	| r -> 
+		r.v
+
+	| effect (Add(a,b)) _ ->
+		a.v +. b.v
+	
+	| effect (Sub(a,b)) _ ->
+		a.v -. b.v
+	
+	| effect (Mult(a,b)) _ ->
+		a.v *. b.v	
+	
+	| effect (Div(a,b)) _ ->
+		a.v /. b.v
+	
+	| effect (Leet(_,f')) _ ->
+		match ls with 
+		| [] -> raise Unknown 
+		| hd::tl ->
+			let v1 = (get_val (fun () -> f' hd) (tl)) in 
+			v1
  
   	let (+.) a b = 
   		perform (Add(a,b))
@@ -129,26 +169,34 @@ struct
 
 	let samp p = 
 		let v1 = Primitive.sample p in
-		let v2 = Primitive.der p v1 in
-		{v=v1; d=0.0 ; m=v2 }
+		let v2 = Primitive.logder p v1 in
+		(* Printf.printf "%f\n" v2; *)
+		{v=v1; d=0.0 ; m= (-.v2) }
 
 end;;
 
 open AD
 
-let f1 () = 
+(* let f1 () = 
 	let* x1 = samp Primitive.(normal 0. 1.) in
 	let* x2 = samp Primitive.(normal 4. 1.) in
 	let* x3 = samp Primitive.(continuous_uniform 0. 1.)  in
 	let* x4 = cond ((get x3) > 0.5) x1 x2 in
-	x4
+	x4 *) 
  
 (* let f1 () = 
 	let* x1 = samp Primitive.(normal 0. 1.) in
-	let* x2 = samp Primitive.(normal 10. 1.) in
-	let* x3 = x1 +. x2 in
-	x3 *)
+	let* x4 = log x1 in
+	x4 *)
+
+let f1 () = 
+	let* x1 = samp Primitive.(normal 0. 1.) in
+	let* x2 = samp Primitive.(normal 0. 1.) in
+	let* x3 = x1 /. x2 in
+	x3
 
 ;;
 
-ignore ( grad f1 )
+let ls =  grad f1  in 
+let v1 =  get_val f1 ls in
+Printf.printf "%f " v1
