@@ -9,11 +9,11 @@ module AD : sig
   val ( *. ) : t ->  t ->  t
   val ( /. ) : t ->  t ->  t
   val ( let* ) :  t -> (t -> t ) ->  t
-  val grad  : ( unit ->  t) -> t list
+  val grad  : ( unit ->  t) -> (t list * float list)
   val samp :float Primitive.t ->  t
   val get : t -> float
   val get_val : ( unit ->  t) -> t list -> float
-  val get_der : ( unit ->  t) -> t list -> t list
+  val get_der : ( unit ->  t) -> float list -> t list
   val cond: bool -> t -> t -> t
   (* val hmc :  ( unit ->  t)  -> float -> float -> int -> float list *)
   (* path_len -> step_size -> epochs -> samples *)
@@ -31,12 +31,12 @@ struct
 		match t' with 
 			{v= v' ; d = _ ;  m = _} -> v'
 
-	effect Add : t * t -> t
-	effect Sub : t * t -> t
-	effect Mult : t * t -> t
-	effect Div : t * t -> t
-	effect Leet : t * (t -> t) -> t
-	effect Samp : float Primitive.t ->  t
+	effect Add : t * t -> (t* (t list))
+	effect Sub : t * t -> (t* (t list))
+	effect Mult : t * t -> (t* (t list))
+	effect Div : t * t -> (t* (t list))
+	effect Leet : t * (t -> t) -> (t* (t list))
+	effect Samp : float Primitive.t ->  (t* (t list))
 	
 	
 	let rec find_list v ls = 
@@ -47,6 +47,7 @@ struct
 			if(v=v1) then d1 else find_list v tl
 
   	let modif_der ls vc dc = 
+  		(* Printf.printf "Modifying %f to %f\n" vc dc; *)
   		List.map 
   		(
   			fun {v=v'; d=d'; m=m'} -> 
@@ -61,73 +62,83 @@ struct
 	  			Caml.Printf.printf "%f %f \n" v' (d');
   		) ls
 
-  	let rec run_grad f ls =
+  	let print_normal_list ls = 
+		List.iter 
+  		(
+  			fun v -> 
+	  			Caml.Printf.printf "%f \n" v;
+  		) ls
+
+  	let rec run_grad f ls sls =
 		match f () with
 		| r -> 
 			r.d <- 1.0; 
 			let ls1 = modif_der !ls r.v r.d in
-			(r,ls1)
+			(r,ls1,!sls)
 		
 		| effect (Add(a,b)) k ->
 			(* print_endline "in add"; *)
 			let x = {v = a.v +. b.v; d = 0.; m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. x.d;
 			b.d <- b.d +. x.d; 
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x,!ls,!sls)
 		
 		| effect (Sub(a,b)) k ->
 			let x = {v = a.v -. b.v; d = 0.; m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. x.d;
 			b.d <- b.d -. x.d; 
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x,!ls,!sls)
 		
 		| effect (Mult(a,b)) k ->
 			let x = {v = a.v *. b.v; d = 0.;  m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. (b.v *. x.d);
 			b.d <- b.d +. (a.v *. x.d);
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)	
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x,!ls,!sls)
 		
 		| effect (Div(a,b)) k ->
 			let x = {v = a.v /. b.v; d = 0.;  m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. (x.d /. b.v);
 			b.d <- b.d +. (a.v *. x.d /. (b.v *. b.v));
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x,!ls,!sls)
 		
 		| effect (Leet(m,f')) _ ->
 			(* print_endline "in let"; *)
 			let x = {v = m.v; d = 0.0; m=m.m} in 
 			ls := !ls@[x];
-			let (x1,ls1) = (run_grad (fun () -> f' m) ls) in
+			let (x1,ls1, sls1) = (run_grad (fun () -> f' m) ls sls) in
 			let d' = find_list x.v ls1 in 
 			x.d <- d';
-			(x1,ls1)
+			(x1,!ls,sls1)
 
 		| effect (Samp(p)) k ->
 			(* print_endline "in samp"; *)
 			let v1 = Primitive.sample p in
+			sls := !sls@[v1];
 			let v2 = Primitive.logder p v1 in
 			let x = {v=v1; d=0.0 ; m= v2 } in
-			ignore (continue k x);
-			let ls1 = modif_der !ls v1 (x.d*.v2) in
-			(x, ls1)
+			ignore (continue k (x,!ls));
+			let ls1 = modif_der !ls v1 (x.d *. v2) in
+			(x, ls1, !sls)
 		
   	let grad f =
   		let rls = ref [] in 
-		let (_,ls) = run_grad f rls in 
+  		let sls = ref [] in 
+		let (_,ls, sls) = run_grad f rls sls in 
 		print_list ls ;
-		ls
+		print_normal_list sls ;
+		(ls,sls)
 
 
 
@@ -140,27 +151,27 @@ struct
 		| effect (Samp(_)) k ->
 			(* print_endline "in samp"; *)
 			let x = {v = 0.0; d = 0.; m=1.} in
-			let x1 = (continue k x) in 
+			let x1 = (continue k (x,ls)) in 
 			x1
 
 		| effect (Add(a,b)) k ->
 			let x = {v = a.v +. b.v; d = 0.; m=1.} in
-			let x1 = (continue k x) in 
+			let x1 = (continue k (x,ls)) in 
 			x1
 		
 		| effect (Sub(a,b)) k ->
 			let x = {v = a.v -. b.v; d = 0.; m=1.} in
-			let x1 = (continue k x) in 
+			let x1 = (continue k (x,ls)) in 
 			x1
 
 		| effect (Mult(a,b)) k ->
 			let x = {v = a.v *. b.v; d = 0.; m=1.} in
-			let x1 = (continue k x) in 
+			let x1 = (continue k (x,ls)) in 
 			x1
 		
 		| effect (Div(a,b)) k ->
 			let x = {v = a.v /. b.v; d = 0.; m=1.} in
-			let x1 = (continue k x) in 
+			let x1 = (continue k (x,ls)) in 
 			x1
 		
 		| effect (Leet(_,f')) _ ->
@@ -176,72 +187,75 @@ struct
 	let rec get_der' f ls' ls = 
 		match f () with 
 		| r -> 
-			print_endline "in r";	
 			r.d <- 1.0; 
-			let ls1 = modif_der !ls r.v r.d in
-			(r,ls1)
+			ls := modif_der !ls r.v r.d;
+			(r,ls)
 		
 		| effect (Add(a,b)) k ->
-			print_endline "in add";	
 			let x = {v = a.v +. b.v; d = 0.; m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. x.d;
 			b.d <- b.d +. x.d; 
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x, ls)
 		
 		| effect (Sub(a,b)) k ->
 			let x = {v = a.v -. b.v; d = 0.; m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. x.d;
 			b.d <- b.d -. x.d; 
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x, ls)
 		
 		| effect (Mult(a,b)) k ->
 			let x = {v = a.v *. b.v; d = 0.;  m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. (b.v *. x.d);
 			b.d <- b.d +. (a.v *. x.d);
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)	
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x, ls)
 		
 		| effect (Div(a,b)) k ->
 			let x = {v = a.v /. b.v; d = 0.;  m=1.} in
-			ignore (continue k x);
+			ignore (continue k (x,!ls));
 			a.d <- a.d +. (x.d /. b.v);
 			b.d <- b.d +. (a.v *. x.d /. (b.v *. b.v));
-			let ls1 = modif_der !ls a.v a.d in
-			let ls2 = modif_der ls1 b.v b.d in
-			(x,ls2)
+			ls := modif_der !ls a.v a.d;
+			ls := modif_der !ls b.v b.d;
+			(x, ls)
 		
-		| effect (Leet(_,f')) _ ->
-			print_endline "in let";	
-			match ls' with 
-			| [] -> raise Unknown 
-			| hd::tl ->	 begin
-				ls := !ls@[hd];
-				let (x',ls1)  = (get_der' (fun () -> f' hd) tl ls) in 
-				(x',ls1)	
-			end
+		| effect (Leet(m,f')) _ ->
+			let x = {v = m.v; d = 0.0; m=m.m} in 
+			ls := !ls@[x];
+			let (x1,_) = (get_der' (fun () -> f' m) ls' ls)  in
+			(x1,ls)
 		
-		| effect (Samp(_)) k ->
-			print_endline "in samp";
-			let x = {v=0.0; d=0.0 ; m= 0.0 } in
-			let (x',ls1) = (continue k x) in
-			(x', ls1)
+		| effect (Samp(p)) k ->
+			match !ls' with 
+			| [] -> raise Unknown
+			| v1::tl -> 
+				let v2 = Primitive.logder p v1 in
+				let x = {v=v1; d=0.0 ; m= v2 } in
+				ls' := tl;
+				ignore (continue k (x,!ls));
+				ls := modif_der !ls v1 (x.d *. v2);
+				(x, ls)
 
-	let get_der f ls' =
+
+
+	let get_der f sls =
 		let rls = ref [] in
-		let ( _ , tl ) = get_der' f ls' rls in
-		(* print_list tl; *)
-		tl
+		let rsls = ref sls in 
+		ignore( get_der' f rsls rls );
+		print_list !rls;
+		!rls
 
   	let samp p = 
-  		perform (Samp(p))
+  		let (x,_) = perform (Samp(p)) in x
+
 		
 
 	(* let getvlist ls = 
@@ -273,24 +287,21 @@ struct
 
 
 	let (+.) a b = 
-
-  		perform (Add(a,b))
+  		let (x,_) = perform (Add(a,b)) in x
   	
   	let (-.) a b = 
+  		let (x,_) = perform (Sub(a,b)) in x
 
-  		perform (Sub(a,b))
-  	
   	let ( *. ) a b = 
+  		let (x,_) = perform (Mult(a,b)) in x
 
-  		perform (Mult(a,b))
   	
   	let ( /. ) a b = 
+  		let (x,_) = perform (Div(a,b)) in x
 
-  		perform (Div(a,b))
   	
   	let (let*) m f = 
-
-  		perform (Leet(m,f))
+  		let (x,_) = perform (Leet(m,f)) in x
 
   	let cond b y n =
 
@@ -314,16 +325,18 @@ open AD
 let f1 () = 
 	let* x1 = samp Primitive.(normal 0. 1.) in
 	let* x2 = samp Primitive.(normal 0. 1.) in
-	let* x3 = x1 -. x2 in
-	x3
+	let* x3 = samp Primitive.(normal 0. 1.) in
+	let* x4 = x2 -. x3 in
+	let* x5 = x1 +. x4 in
+	x5
 
 ;;
 
-let ls =  grad f1  in
+let (ls,smp) =  grad f1  in
 print_endline " "; 
 let v1 =  get_val f1 ls in
 Printf.printf "%f \n" v1;
 print_endline " "; 
-ignore( get_der f1 ls );
+ignore( get_der f1 smp );
 (* ignore (grad f1); *)
 
