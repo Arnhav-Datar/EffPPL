@@ -33,6 +33,8 @@ module type PRIM_DIST = sig
 
   val der : t -> float
 
+  val params : t list
+
   val support : t support
 end
 
@@ -49,6 +51,7 @@ let binomial n p =
 	    let ppf _ = raise NotImplemented
 	    let support = DiscreteFinite (List.init (n+1) (fun x->x))
       let der _ = raise NotContinous
+      let params = raise NotContinous
 
   	end : PRIM_DIST with type t = int 
 )
@@ -76,6 +79,8 @@ let ps = Base.Array.of_list_map ~f:snd xs in
 
     let der _ = raise NotContinous
 
+    let params = raise NotContinous
+
 
 		let support = DiscreteFinite (Base.List.map ~f:fst xs)
 		end : PRIM_DIST
@@ -97,9 +102,10 @@ let normal mu sigma =
       let s2p = 2.50662827463 in
       let x' = x -. mu in
       let coeff1 =  Caml.Float.neg (x' /. (s2p *. sigma *. sigma *. sigma)) in
-      let coeff2 =  Caml.Float.neg ((x' *. x') /. (sigma *. sigma)) in
+      let coeff2 =  Caml.Float.neg ((x' *. x') /. (2.0 *. sigma *. sigma)) in
       (coeff1 *. (Float.exp coeff2))
     )
+    let params = mu :: [sigma]
 
   end : PRIM_DIST with type t = float 
 )
@@ -121,6 +127,9 @@ let discrete_uniform a b =
     let support = DiscreteFinite (List.init (b-a+1) (fun x-> x +a))
 
     let der _ = raise NotContinous
+
+    let params = raise NotContinous
+
   end : PRIM_DIST
     with type t = int 
 )
@@ -147,6 +156,8 @@ let beta a b =
         (lhv-. rhv) /. (be a b)
       )
   
+      let params = a :: [b]
+
 
   	end : PRIM_DIST with type t = float 
 )
@@ -165,6 +176,7 @@ let gamma shape scale =
         let vl =  Owl_stats.gamma_pdf ~shape:shape ~scale:scale x in
         vl*. (((shape -. 1.) /. x) -. (1. /. scale))
       )
+      let params = shape :: [scale]
 
 
     end : PRIM_DIST with type t = float 
@@ -182,6 +194,7 @@ let continuous_uniform a b =
 	    let ppf = Owl_stats.uniform_ppf ~a ~b
 	    let support = ContinuousFinite [ (a, b) ]
       let der _ = 0.
+      let params = a :: [b]
 
 
 	end : PRIM_DIST with type t = float 
@@ -199,6 +212,7 @@ let chi2 df =
 	    let support = ContinuousInfinite
       let der = fun x->  (( (((df /. 2.) -. 1.) /. x) -. 0.5) *. (Owl_stats.chi2_pdf ~df:df  x))
 
+      let params = [df]
 
     end : PRIM_DIST with type t = float 
 )
@@ -214,6 +228,7 @@ let f dfnum dfden =
 	    let ppf = Owl_stats.f_ppf ~dfnum ~dfden
 	    let support = ContinuousInfinite
       let der _ = raise NotImplemented
+      let params = dfnum :: [dfden]
 
 
     end : PRIM_DIST with type t = float 
@@ -234,6 +249,7 @@ let exponential lambda =
       let der = fun x -> (
         lambda *. (Owl_stats.exponential_pdf ~lambda:lambda x)
       )
+      let params = [lambda]
 
 
     end : PRIM_DIST with type t = float 
@@ -254,6 +270,7 @@ let cauchy loc scale =
         let n2p = -6.28318530718 in
         vl*.vl*.n2p*.(x -. loc)
       )
+      let params = [loc;scale]
 
     end : PRIM_DIST with type t = float 
 
@@ -275,7 +292,7 @@ let logpdf (type a) d x =
 
 let logder (type a) d x =
   let (module D : PRIM_DIST with type t = a) = d in
-  (D.pdf x) /. (D.pdf x)
+  (D.der x) /. (D.pdf x)
 
 let cdf (type a) d =
   let (module D : PRIM_DIST with type t = a) = d in
@@ -289,6 +306,10 @@ let support (type a) d =
   let (module D : PRIM_DIST with type t = a) = d in
   D.support
 
+let params (type a) d =
+  let (module D : PRIM_DIST with type t = a) = d in
+  D.params
+
 let ppf (type a) d =
   let (module D : PRIM_DIST with type t = a) = d in
   D.ppf
@@ -296,7 +317,7 @@ let ppf (type a) d =
 
 
 
-let create_primitive (type a) ~sample ~pdf ~cdf ~support ~ppf ~der =
+let create_primitive (type a) ~sample ~pdf ~cdf ~support ~ppf ~der ~params =
   let module D = struct
     type t = a
 
@@ -309,6 +330,8 @@ let create_primitive (type a) ~sample ~pdf ~cdf ~support ~ppf ~der =
     let ppf = ppf
 
     let der = der
+
+    let params = params
 
     let support = support
   end in
@@ -337,6 +360,7 @@ let poisson l =
 
     let ppf _ = raise NotImplemented
     let der _ = raise NotContinous
+    let params = raise NotContinous
 
     let support = DiscreteInfinite
   end : PRIM_DIST
@@ -358,6 +382,7 @@ let geometric p =
 
     let support = DiscreteInfinite
     let der _ = raise NotContinous
+    let params = raise NotContinous
 
 
   end : PRIM_DIST
