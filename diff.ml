@@ -12,6 +12,7 @@ module AD : sig
   val grad  : ( unit ->  t) -> (t list * float list * float Primitive.t list)
   val samp :float Primitive.t ->  t
   val norm : t -> t -> t
+  val beta : t -> t -> t
   val get : t -> float
   val get_der : ( unit ->  t) -> float list -> (float * t list)
   val cond: bool -> t -> t -> t
@@ -39,6 +40,7 @@ struct
 	effect Mult : t * t -> t
 	effect Div : t * t ->  t
 	effect Norm : t * t ->  t
+	effect Beta : t * t ->  t
 	effect Leet : t * (t -> t) -> t
 	effect Samp : float Primitive.t ->  t
 	
@@ -155,7 +157,24 @@ struct
 			let vf = (((v1 -. m) *. (v1 -. m)) -. (s *. s))/. (s *. s *. s) in
 			ls := modif_der !ls s (si.d +. x.d *. vf);
 			(x)
-						
+		
+		| effect (Beta(a1,b1)) k ->
+			let a = get(a1) in
+			let b = get(b1) in
+			let p = Primitive.(beta a b) in 
+			let v1 = Primitive.sample p in
+			sls := !sls@[v1];
+			pls := !pls@[p];
+			let v2 = Primitive.logder p v1 in
+			let x = {v=v1; d=0.0 ; m= v2 } in
+			ignore (continue k x);
+			let dn = find_list v1 !ls  in 
+			ls := modif_der !ls v1 (dn *. v2);
+			ls := modif_der !ls a (a1.d +. x.d *. Float.log(v1));
+			ls := modif_der !ls b (b1.d +. x.d *. Float.log(1.0 -. v1));
+			(x)
+
+
 		
   	let grad f =
   		let rls = ref [] in 
@@ -220,22 +239,46 @@ struct
 			ls := !ls@[x];
 			let (x1,_) = (get_der' (fun () -> f' m) ls' ls)  in
 			(x1,ls)
-		
-		| effect (Samp(p)) k ->
+
+
+		| effect (Norm(mu,si)) k -> begin
 			match !ls' with 
 			| [] -> raise Unknown
 			| v1::tl -> 
+				let m = get(mu) in
+				let s = get(si) in
+				let p = Primitive.(normal m s) in 
 				let v2 = Primitive.logder p v1 in
 				let x = {v=v1; d=0.0 ; m= v2 } in
 				ls' := tl;
 				let (rv,_) =  (continue k x) in
-				ls := modif_der !ls v1 (x.d *. v2);
+				
+				let dn = find_list v1 !ls  in 
+				ls := modif_der !ls v1 (dn *. v2);
+				mu.d <- mu.d +. x.d *. v2;
+				ls := modif_der !ls m (mu.d);
+				let vf = (((v1 -. m) *. (v1 -. m)) -. (s *. s))/. (s *. s *. s) in
+				ls := modif_der !ls s (si.d +. x.d *. vf);
 				(rv, ls)
+		end
 
-
-		
-
-
+		| effect (Beta(a1,b1)) k -> 
+			match !ls' with 
+			| [] -> raise Unknown
+			| v1::tl ->
+				let a = get(a1) in
+				let b = get(b1) in
+				let p = Primitive.(beta a b) in 
+				let v2 = Primitive.logder p v1 in
+				let x = {v=v1; d=0.0 ; m= v2 } in
+				ls' := tl;
+				let (rv,_) =  (continue k x) in
+					
+				let dn = find_list v1 !ls  in 
+				ls := modif_der !ls v1 (dn *. v2);
+				ls := modif_der !ls a (a1.d +. x.d *. Float.log(v1));
+				ls := modif_der !ls b (b1.d +. x.d *. Float.log(1.0 -. v1));
+				(rv, ls)
 
 
 	let get_der f sls =
@@ -250,8 +293,9 @@ struct
   	let norm mu si = 
   		perform (Norm(mu,si))
 
-		
-
+	let beta a b = 
+		perform (Beta(a,b))
+ 
 	(* let getvlist ls = 
 		List.map 
   		(
@@ -312,6 +356,8 @@ struct
 
 			let q0 = List.nth samp_list (List.length samp_list - 1) in
 			let q1 = q0 in
+			print_normal_list q0;
+			print_endline "=========";
 
 			let p0 = norm_list (List.length q1) in
 			let p1 = p0 in
@@ -319,10 +365,8 @@ struct
 			let (_, dv) = get_der f q1 in
 			let dv = subs dv q1 [] in 
 			let dvdq = List.map (fun f -> f *. (-. 1.0)) dv in
+			print_normal_list dvdq;
 
-			(* print_normal_list p0;
-			print_normal_list q0;
-			print_normal_list dvdq; *)
 			let (p1, q1) = leapfrog pl stp p1 q1 dvdq in
 			let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
 
@@ -331,16 +375,16 @@ struct
 			let q0p = nlp q0 pls in
 			let q1p = nlp q1 pls in
 
-			(* Printf.printf "%f %f %f %f\n" p0p p1p q0p q1p;  *)
 
 			let tgt = q0p -. q1p in
 			let adj = p1p -. p0p in 
-			(* Printf.printf "%f %f \n" tgt adj;  *)
 			let acc = tgt +. adj in
 
 			let x' = Primitive.sample (Primitive.continuous_uniform 0. 1.) in
 			let x = Float.log x' in
-			(* Printf.printf "%f %f\n" x acc; *)
+
+			(* assert(List.hd q0 <> List.hd q1); *)
+			
 			if (x < acc) then
 				hmc' f pl stp (ep-1) (samp_list@[q1]) pls
 			else
@@ -350,7 +394,7 @@ struct
 
 	let hmc (f: ( unit ->  t) ) (pl:float) (stp:float) (ep:int) : float list list =
 		let (_, smp, pls) = grad f in 
- 		Printf.printf "%d \n" (List.length smp);
+ 		(* Printf.printf "%d \n" (List.length smp); *)
 		hmc' f pl stp ep [smp] pls
 
 	let print_sample_list ls =
@@ -379,36 +423,42 @@ end;;
 
 open AD
 
-(* let f1 () = 
-	let* x1 = samp Primitive.(normal 0. 1.) in
-	let* x2 = samp Primitive.(normal 4. 1.) in
-	let* x3 = samp Primitive.(continuous_uniform 0. 1.)  in
-	let* x4 = cond ((get x3) > 0.5) x1 x2 in
-	x4 
- ;; *)
 let f1 () = 
 	let* x1 = norm (mk 0.) (mk 1.) in
-	let* x2 = norm x1 x1  in
-	x1 -.  x2
-;;
+	let* x2 = norm (mk 10.) (mk 1.)in
+	let* x3 = beta (mk 1.) (mk 1.) in
+	let* x4 = cond ((get x3) > 0.5) x1 x2 in
+	x4 
+ ;;
+(* let f1 () = 
+	let* x1 = norm (mk 2.) (mk 1.) in
+	let* x2 = norm (mk 2.) (mk 1.) in
+	let* x3 = norm (mk 2.) (mk 1.) in
+	x1 +. x2 +. x3
+;; *)
 (* let f1 () = 
 	let* x1 = samp Primitive.(normal 3. 0.5) in
 	x1 
 
 ;; *)
 
-(* let (ls,smp,_) =  grad f1  in
+let (ls,smp,_) =  grad f1  in
 print_list ls;
 print_endline "";
-print_normal_list smp; *)
-(* let (x,ls1) =  get_der f1 smp in *)
+print_normal_list smp;
+print_endline "";
+
+let (x1,ls1) =  get_der f1 smp in
 (* let x = hmc f1 0.4 0.1 5000 in *)
-(* print_normal_list (List.hd x); *)
 (* print_sample_list x *)
+print_list ls1;
+Printf.printf "%f \n\n" x1;
 
-
-let x = Primitive.sample (Primitive.normal 0. 1.) in
+(* let x = Primitive.sample (Primitive.normal 0. 1.) in
 let y1 = Primitive.der (Primitive.normal 0. 1.) x in
 let y2 = Primitive.pdf (Primitive.normal 0. 1.) x in
 let y = Primitive.logder (Primitive.normal 0. 1.) x in
-Printf.printf "%f %f %f %f \n" x y y1 y2;
+Printf.printf "%f %f %f %f \n" x y y1 y2; *)
+
+let x = hmc f1 0.3 0.05 1000 in
+print_sample_list x
