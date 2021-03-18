@@ -1,5 +1,6 @@
 exception Unknown
 
+
 module AD : sig
   
   type t
@@ -15,11 +16,14 @@ module AD : sig
   val beta : t -> t -> t
   val get : t -> float
   val get_der : ( unit ->  t) -> float list -> (float * t list)
+  val get_val : ( unit ->  t) -> float list -> (float)
   val cond: bool -> t -> t -> t
   val hmc : ( unit ->  t)  -> float -> float -> int -> float list list
   val print_list : t list -> unit
   val print_normal_list : float list -> unit
   val print_sample_list : float list list -> unit
+  val print_values : float list list -> ( unit ->  t) -> unit
+  val get_list: ( unit ->  t)  -> float -> float -> int -> float list
   (* path_len -> step_size -> epochs -> samples *)
 
 end = 
@@ -93,7 +97,7 @@ struct
 			b.d <- b.d +. x.d; 
 			ls := modif_der !ls a.v a.d;
 			ls := modif_der !ls b.v b.d;
-			print_endline "in add";
+			(* print_endline "in add"; *)
 			(x)
 		
 		| effect (Sub(a,b)) k ->
@@ -184,7 +188,72 @@ struct
 		(!rls,!sls,!pls)
 
 
-	
+	let rec get_val' f ls' = 
+		match f () with 
+		| r -> 
+			r.d <- 1.0; 
+			r
+
+		| effect (Add(a,b)) k ->
+			let x = {v = a.v +. b.v; d = 0.; m=1.} in
+			(continue k x);
+		
+		| effect (Sub(a,b)) k ->
+			let x = {v = a.v -. b.v; d = 0.; m=1.} in
+			(continue k x);
+			
+		
+		| effect (Mult(a,b)) k ->
+			let x = {v = a.v *. b.v; d = 0.;  m=1.} in
+			(continue k x);
+			
+
+		
+		| effect (Div(a,b)) k ->
+			let x = {v = a.v /. b.v; d = 0.;  m=1.} in
+			(continue k x);
+			
+		
+		| effect (Leet(m,f')) _ ->
+			(* let x = {v = m.v; d = 0.0; m=m.m} in  *)
+			let x1 = (get_val' (fun () -> f' m) ls')  in
+			x1
+
+
+		| effect (Norm(mu,si)) k -> begin
+			match !ls' with 
+			| [] -> raise Unknown
+			| v1::tl -> 
+				let m = get(mu) in
+				let s = get(si) in
+				let p = Primitive.(normal m s) in 
+				let v2 = Primitive.logder p v1 in
+				let x = {v=v1; d=0.0 ; m= v2 } in
+				ls' := tl;
+				(continue k x);
+					
+		end
+
+		| effect (Beta(a1,b1)) k -> begin
+			match !ls' with 
+			| [] -> raise Unknown
+			| v1::tl ->
+				let a = get(a1) in
+				let b = get(b1) in
+				let p = Primitive.(beta a b) in 
+				let v2 = Primitive.logder p v1 in
+				let x = {v=v1; d=0.0 ; m= v2 } in
+				ls' := tl;
+				(continue k x);
+				
+		end
+
+
+	let get_val f sls =
+		let rsls = ref sls in 
+		let x1 = ( get_val' f rsls) in
+		(x1.v)
+
 	let rec get_der' f ls' ls = 
 		match f () with 
 		| r -> 
@@ -296,32 +365,17 @@ struct
 	let beta a b = 
 		perform (Beta(a,b))
  
-	(* let getvlist ls = 
-		List.map 
-  		(
-  			fun {v=v'; d=_; m=_} -> v'
-  		)  ls
-
-  	let getdlist ls =
-		List.map 
-  		(
-  			fun {v=_; d=d'; m=_} ->  d'
-  		)  ls  		
- *)
  	let norm_list n = 
  		List.init n (fun _ -> Primitive.sample (Primitive.normal 0. 1.)) 
 
  	let listadd l1 l2 mul= 
- 		(* Printf.printf "%d %d \n" (List.length l1) (List.length l2); *)
  		List.map2 (fun x y -> x +. (y *. mul) ) l1 l2 
 
  	let rec leapfrog (pl:float) (stp:float) (p1:float list) (q1:float list) (dVdQ:float list) =
  		if(stp >= pl) then
  			(p1, q1)
  		else 
- 			(* let () = ignore(print_normal_list p1) in  *)
  			let p1 = listadd p1 dVdQ (stp/.2.0) in 
- 			(* print_normal_list p1; *)
  			let q1 = listadd q1 p1 1.0 in 
  			let p1 = listadd p1 dVdQ (stp/.2.0) in 
  			leapfrog (pl -. stp) stp p1 q1 dVdQ 
@@ -334,7 +388,7 @@ struct
  			| [] -> l3
  			| h::t -> 
  				if(h=hd.v) then
- 					subs tl t (h::l3)
+ 					subs tl t (hd.d::l3)
  				else
  					subs tl l2 l3
  		end
@@ -353,19 +407,19 @@ struct
 		if(ep=0) then
 			samp_list
 		else
-
 			let q0 = List.nth samp_list (List.length samp_list - 1) in
 			let q1 = q0 in
-			print_normal_list q0;
-			print_endline "=========";
+			(* let _ =
+				if(ep mod 250 = 0) then
+					Printf.printf "Left with %d epochs\n" (ep)
+			in *)
 
 			let p0 = norm_list (List.length q1) in
 			let p1 = p0 in
 
 			let (_, dv) = get_der f q1 in
-			let dv = subs dv q1 [] in 
-			let dvdq = List.map (fun f -> f *. (-. 1.0)) dv in
-			print_normal_list dvdq;
+			let dv = List.rev ( subs dv q1 [] ) in 
+			let dvdq = List.map (fun f -> f *. (-. 1.0)) (dv) in
 
 			let (p1, q1) = leapfrog pl stp p1 q1 dvdq in
 			let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
@@ -375,15 +429,12 @@ struct
 			let q0p = nlp q0 pls in
 			let q1p = nlp q1 pls in
 
-
 			let tgt = q0p -. q1p in
 			let adj = p1p -. p0p in 
 			let acc = tgt +. adj in
 
 			let x' = Primitive.sample (Primitive.continuous_uniform 0. 1.) in
 			let x = Float.log x' in
-
-			(* assert(List.hd q0 <> List.hd q1); *)
 			
 			if (x < acc) then
 				hmc' f pl stp (ep-1) (samp_list@[q1]) pls
@@ -394,11 +445,19 @@ struct
 
 	let hmc (f: ( unit ->  t) ) (pl:float) (stp:float) (ep:int) : float list list =
 		let (_, smp, pls) = grad f in 
- 		(* Printf.printf "%d \n" (List.length smp); *)
 		hmc' f pl stp ep [smp] pls
 
 	let print_sample_list ls =
 		List.iter (fun ll -> print_normal_list ll) ls
+
+	let print_values ls f =
+		List.iter (fun ll-> 
+			let x = get_val f ll in 
+			Printf.printf "%f\n" x;
+		) ls
+
+	let get_list (f: ( unit ->  t) ) (pl:float) (stp:float) (ep:int) =
+		List.map (fun ll->  get_val f ll ) (hmc f pl stp ep)
 
 	let (+.) a b = 
 		perform (Add(a,b))
@@ -421,44 +480,72 @@ struct
   		if b then y else n
 end;;
 
+
+(*Test 1*)
+
+print_endline "+++++++++++++++++++++++++++++++++++++++";
+print_endline "=======================================";
+print_endline "Checking Helper functions";
+print_endline "=======================================";
+print_endline "+++++++++++++++++++++++++++++++++++++++";
+
 open AD
 
 let f1 () = 
-	let* x1 = norm (mk 0.) (mk 1.) in
-	let* x2 = norm (mk 10.) (mk 1.)in
-	let* x3 = beta (mk 1.) (mk 1.) in
-	let* x4 = cond ((get x3) > 0.5) x1 x2 in
-	x4 
- ;;
-(* let f1 () = 
 	let* x1 = norm (mk 2.) (mk 1.) in
 	let* x2 = norm (mk 2.) (mk 1.) in
 	let* x3 = norm (mk 2.) (mk 1.) in
-	x1 +. x2 +. x3
-;; *)
-(* let f1 () = 
-	let* x1 = samp Primitive.(normal 3. 0.5) in
-	x1 
-
-;; *)
+	let* x4 = 	x1 +. x2 +. x3 in 
+	let* x5 = 	x1 *. x2 *. x3 in 
+	x4 +. x5
+;;
 
 let (ls,smp,_) =  grad f1  in
+Printf.printf "All values and derivatives\n";
 print_list ls;
 print_endline "";
+
+Printf.printf "All samplings\n";
 print_normal_list smp;
 print_endline "";
 
+Printf.printf "Getting it back functions \n";
 let (x1,ls1) =  get_der f1 smp in
-(* let x = hmc f1 0.4 0.1 5000 in *)
-(* print_sample_list x *)
 print_list ls1;
 Printf.printf "%f \n\n" x1;
 
-(* let x = Primitive.sample (Primitive.normal 0. 1.) in
-let y1 = Primitive.der (Primitive.normal 0. 1.) x in
-let y2 = Primitive.pdf (Primitive.normal 0. 1.) x in
-let y = Primitive.logder (Primitive.normal 0. 1.) x in
-Printf.printf "%f %f %f %f \n" x y y1 y2; *)
+let x1 = get_val f1 smp in 
+Printf.printf "%f \n\n" x1;
 
-let x = hmc f1 0.3 0.05 1000 in
-print_sample_list x
+print_endline "+++++++++++++++++++++++++++++++++++++++";
+print_endline "=======================================";
+print_endline "Checking A simple HMC for my DL exam";
+print_endline "=======================================";
+print_endline "+++++++++++++++++++++++++++++++++++++++";
+
+
+(*Test 2*)
+let f1 () =
+	let* x1 = norm (mk 45.11363636) (mk 14.54225817) in
+	let* x2 = norm (mk 37.8358209) (mk 15.56563281) in
+	let* x3 = x1 /. (mk 70.0) in
+	let* x4 = x2 /. (mk 70.0) in
+	let* x5 = if (get(x3) > get(x4)) then x3 else x4 in
+	let* x6 = if (get(x3) > get(x4)) then x4 else x3 in
+	let* x7 = (mk 5. /. mk 12.) *. x6 +. (mk 7. /. mk 12.) *. x5 in
+	x7 *. (mk 65.)
+in
+
+let epochs = 10000 in
+let fils = Array.of_list (get_list f1 2.0 0.5 epochs) in
+
+Printf.printf "Mean = %f\n" (Owl_stats.mean fils);
+Printf.printf "Std. Dev. = %f\n\n" (Owl_stats.std fils);
+
+
+print_endline "+++++++++++++++++++++++++++++++++++++++";
+print_endline "=======================================";
+print_endline "+++++++++++++++++++++++++++++++++++++++";
+
+
+
