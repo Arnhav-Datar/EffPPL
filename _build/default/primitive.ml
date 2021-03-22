@@ -26,6 +26,8 @@ module type PRIM_DIST = sig
   (* val sample_n : int -> t  *)
 
   val pdf : t -> float
+  
+  val logpdf : t -> float
 
   val cdf : t -> float
 
@@ -46,7 +48,8 @@ let binomial n p =
 	    type t = int
 
 	    let sample () = Owl_stats.binomial_rvs ~n ~p
-	    let pdf = Owl_stats.binomial_pdf ~n ~p
+      let pdf = Owl_stats.binomial_pdf ~n ~p
+	    let logpdf = Owl_stats.binomial_logpdf ~n ~p
 	    let cdf = Owl_stats.binomial_cdf ~n ~p
 	    let ppf _ = raise NotImplemented
 	    let support = DiscreteFinite (List.init (n+1) (fun x->x))
@@ -75,7 +78,8 @@ let ps = Base.Array.of_list_map ~f:snd xs in
 
 		let cdf _ = raise NotImplemented
 
-		let ppf _ = raise NotImplemented
+    let ppf _ = raise NotImplemented
+		let logpdf _ = raise NotImplemented
 
     let der _ = raise NotContinous
 
@@ -95,6 +99,7 @@ let normal mu sigma =
     let sample () = let x = Owl_stats.gaussian_rvs ~mu ~sigma in 
     (* print_float x; *) x
     let pdf = Owl_stats.gaussian_pdf ~mu ~sigma
+    let logpdf = Owl_stats.gaussian_logpdf ~mu ~sigma
     let cdf = Owl_stats.gaussian_cdf ~mu ~sigma
     let ppf = Owl_stats.gaussian_ppf ~mu ~sigma
     let support = ContinuousInfinite
@@ -123,6 +128,7 @@ let discrete_uniform a b =
     let cdf x = (min 1. (max 0. ( float_of_int (1+x)) /. (float_of_int @@ (b-a+1))))
 
     let ppf _ = raise NotImplemented
+    let logpdf _ = raise NotImplemented
 
     let support = DiscreteFinite (List.init (b-a+1) (fun x-> x +a))
 
@@ -143,7 +149,8 @@ let beta a b =
 	    type t = float
 
 	    let sample () = Owl_stats.beta_rvs ~a ~b
-	    let pdf = Owl_stats.beta_pdf ~a ~b
+      let pdf = Owl_stats.beta_pdf ~a ~b
+	    let logpdf = Owl_stats.beta_logpdf ~a ~b
 	    let cdf = Owl_stats.beta_cdf ~a ~b
 	    let ppf = Owl_stats.beta_ppf ~a ~b
 	    let support = ContinuousFinite [ (0., 1.) ]
@@ -168,7 +175,8 @@ let gamma shape scale =
 	    
 	    type t = float
 	    let sample () = Owl_stats.gamma_rvs ~shape ~scale
-	    let pdf = Owl_stats.gamma_pdf ~shape ~scale
+      let pdf = Owl_stats.gamma_pdf ~shape ~scale
+	    let logpdf = Owl_stats.gamma_logpdf ~shape ~scale
 	    let cdf = Owl_stats.gamma_cdf ~shape ~scale
 	    let ppf _ = raise NotImplemented
 	    let support = ContinuousInfinite
@@ -189,7 +197,8 @@ let continuous_uniform a b =
 	    type t = float
 
 	    let sample () = Owl_stats.uniform_rvs ~a ~b
-	    let pdf = Owl_stats.uniform_pdf ~a ~b
+      let pdf = Owl_stats.uniform_pdf ~a ~b
+	    let logpdf = Owl_stats.uniform_logpdf ~a ~b
 	    let cdf = Owl_stats.uniform_cdf ~a ~b
 	    let ppf = Owl_stats.uniform_ppf ~a ~b
 	    let support = ContinuousFinite [ (a, b) ]
@@ -206,7 +215,8 @@ let chi2 df =
 	    
 	    type t = float
 	    let sample () = Owl_stats.chi2_rvs ~df
-	    let pdf = Owl_stats.chi2_pdf ~df
+      let pdf = Owl_stats.chi2_pdf ~df
+	    let logpdf = Owl_stats.chi2_logpdf ~df
 	    let cdf = Owl_stats.chi2_cdf ~df
 	    let ppf = Owl_stats.chi2_ppf ~df
 	    let support = ContinuousInfinite
@@ -223,7 +233,8 @@ let f dfnum dfden =
 	    
 	    type t = float
 	    let sample () = Owl_stats.f_rvs ~dfnum ~dfden
-	    let pdf = Owl_stats.f_pdf ~dfnum ~dfden
+      let pdf = Owl_stats.f_pdf ~dfnum ~dfden
+	    let logpdf = Owl_stats.f_logpdf ~dfnum ~dfden
 	    let cdf = Owl_stats.f_cdf ~dfnum ~dfden
 	    let ppf = Owl_stats.f_ppf ~dfnum ~dfden
 	    let support = ContinuousInfinite
@@ -242,7 +253,8 @@ let exponential lambda =
 	    
 	    type t = float
 	    let sample () = Owl_stats.exponential_rvs ~lambda
-	    let pdf = Owl_stats.exponential_pdf ~lambda 
+      let pdf = Owl_stats.exponential_pdf ~lambda 
+	    let logpdf = Owl_stats.exponential_logpdf ~lambda 
 	    let cdf = Owl_stats.exponential_cdf ~lambda
 	    let ppf = Owl_stats.exponential_ppf ~lambda 
 	    let support = ContinuousInfinite
@@ -261,7 +273,8 @@ let cauchy loc scale =
 	    
 	    type t = float
 	    let sample () = Owl_stats.cauchy_rvs ~loc ~scale
-	    let pdf = Owl_stats.cauchy_pdf  ~loc ~scale
+      let pdf = Owl_stats.cauchy_pdf  ~loc ~scale
+	    let logpdf = Owl_stats.cauchy_logpdf  ~loc ~scale
 	    let cdf = Owl_stats.cauchy_cdf  ~loc ~scale
 	    let ppf = Owl_stats.cauchy_ppf  ~loc ~scale
 	    let support = ContinuousInfinite
@@ -286,9 +299,9 @@ let der (type a) d =
   let (module D : PRIM_DIST with type t = a) = d in
   D.der
 
-let logpdf (type a) d x =
+let logpdf (type a) d =
   let (module D : PRIM_DIST with type t = a) = d in
-  Float.log (D.pdf x)
+  D.logpdf
 
 let logder (type a) d x =
   let (module D : PRIM_DIST with type t = a) = d in
@@ -317,13 +330,14 @@ let ppf (type a) d =
 
 
 
-let create_primitive (type a) ~sample ~pdf ~cdf ~support ~ppf ~der ~params =
+let create_primitive (type a) ~sample ~pdf ~cdf ~support ~ppf ~der ~params ~logpdf =
   let module D = struct
     type t = a
 
     let sample = sample
 
     let pdf = pdf
+    let logpdf = logpdf
 
     let cdf = cdf
 
@@ -359,6 +373,7 @@ let poisson l =
     let cdf k = gammainc (float_of_int (k + 1)) l /. fact k
 
     let ppf _ = raise NotImplemented
+    let logpdf _ = raise NotImplemented
     let der _ = raise NotContinous
     let params = raise NotContinous
 
@@ -383,6 +398,7 @@ let geometric p =
     let support = DiscreteInfinite
     let der _ = raise NotContinous
     let params = raise NotContinous
+    let logpdf _ = raise NotImplemented
 
 
   end : PRIM_DIST

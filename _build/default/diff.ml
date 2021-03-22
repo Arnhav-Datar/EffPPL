@@ -343,6 +343,7 @@ struct
 			| v1::tl -> 
 				let m = get(mu) in
 				let s = get(si) in
+				(* Printf.printf "Norm %f\n" v1; *)
 				let p = Primitive.(normal m s) in 
 				let v2 = Primitive.logder p v1 in
 				let x = {v=v1; d=0.0 ; m= v2 } in
@@ -364,6 +365,7 @@ struct
 			| v1::tl ->
 				let a = get(a1) in
 				let b = get(b1) in
+				(* Printf.printf "Beta %f\n" v1; *)
 				let p = Primitive.(beta a b) in 
 				let v2 = Primitive.logder p v1 in
 				let x = {v=v1; d=0.0 ; m= v2 } in
@@ -383,6 +385,7 @@ struct
 			| v1::tl ->
 				let k = get(k1) in
 				let t = get(t1) in
+				(* Printf.printf "Gamma %f\n" v1; *)
 				let p = Primitive.(gamma k t) in 
 				let v2 = Primitive.logder p v1 in
 				let x = {v=v1; d=0.0 ; m= v2 } in
@@ -464,7 +467,8 @@ struct
 			
 		| effect (Obs(tu,f)) k -> begin
 			let x = {v = 0.0; d = 0.;  m=1.} in
-			ignore (vl := !vl -. (Float.log (f tu.v)));
+			(* Printf.printf "%f %f \n" tu.v (f tu.v) ;  *)
+			ignore (vl := !vl -. ((f tu.v)));
 			(continue k x);
 		end		
 		
@@ -527,7 +531,7 @@ struct
  		assert(List.length q = List.length pls);
  		let a1 = List.fold_left2 ( fun acc y p -> acc -. (Primitive.logpdf p y)) 0. q pls in 
  		let a2 = get_obs_log f q in 
- 		(* Printf.printf "%f %f\n" a1 a2; *)
+ 		(* Printf.printf "%f %f\n" a1 a2;  *)
  		a1 +. a2 
 
  	let nlp1 p = 
@@ -540,12 +544,14 @@ struct
 
 	let rec leapfrog (li:int ) (stp:float) (p1:float list) (q1:float list) f =
  		let dVdQ = get_hmc_grad f q1 in 
+ 		(* Printf.printf "Leapfrog iteration %d\n" li; *)
  		if(li = 0) then
  			(p1, q1)
  		else 
  			let p1 = listadd p1 dVdQ (stp/.2.0) in 
  			let q1 = listadd q1 p1 1.0 in 
  			let dVdQ1 = get_hmc_grad f q1 in 
+ 			(* Printf.printf "Leapfrog iteration %d\n" li; *)
  			let p1 = listadd p1 dVdQ1 (stp/.2.0) in 
  			leapfrog (li -1) stp p1 q1 f
 
@@ -555,10 +561,10 @@ struct
 		else
 			let q0 = List.nth samp_list (List.length samp_list - 1) in
 			let q1 = q0 in
-			(* let _ =
-				if(ep mod 250 = 0) then
+			let _ =
+				if(ep mod 25 = 0) then
 					Printf.printf "Left with %d epochs\n" (ep)
-			in *)
+			in
 
 			let p0 = norm_list (List.length q1) in
 			let p1 = p0 in
@@ -583,8 +589,10 @@ struct
 			let x' = Primitive.sample (Primitive.continuous_uniform 0. 1.) in
 			let x = Float.log x' in
 			
-			if (x < acc) then
+			if (x < acc) then begin
+				(* print_normal_list q1; *)
 				hmc' f li stp (ep-1) (samp_list@[q1]) pls
+			end
 			else
 				hmc' f li stp (ep) (samp_list) pls
 
@@ -673,7 +681,7 @@ Printf.printf "%f \n\n" x1;
 
 
 
-print_endline "+++++++++++++++++++++++++++++++++++++++";
+(* print_endline "+++++++++++++++++++++++++++++++++++++++";
 print_endline "=======================================";
 print_endline "Checking A simple HMC for my DL exam";
 print_endline "=======================================";
@@ -689,32 +697,60 @@ let f2 () =
 	let* x6 = if (get(x3) > get(x4)) then x4 else x3 in
 	let* x7 = (mk 5. /. mk 12.) *. x6 +. (mk 7. /. mk 12.) *. x5 in
 	let* x8 = x7 *. (mk 65.) in 
-	(observe x8 (Primitive.pdf (Primitive.(normal 50.0 10.0 ))));
+	(observe x8 (Primitive.logpdf (Primitive.(normal 50.0 10.0 ))));
 	x8
 
 in 
 
 
-let epochs = 10000 in
+let epochs = 1000 in
 let fils = Array.of_list (AD.get_samples f2 4 0.25 epochs) in
 
 let mn = (Owl_stats.mean fils) in 
 let st = (Owl_stats.std fils) in 
 Printf.printf "Mean = %f\n" mn;
-Printf.printf "Std. Dev. = %f\n" st;
+Printf.printf "Std. Dev. = %f\n" st; *)
 
+
+(* Printf.printf "Normal 0 1 logpdf at 1 = %f\n" (Primitive.logpdf (Primitive.normal 0. 1. ) 100.)  *)
 
 
 print_endline "+++++++++++++++++++++++++++++++++++++++";
 print_endline "=======================================";
-print_endline "Linear Regression";
+print_endline "Linear Regression Data";
 print_endline "=======================================";
 print_endline "+++++++++++++++++++++++++++++++++++++++"; 
 
 
-(* let lin () =
-	let* m = exp (mk 0.7) in 
-	let* c = norm (mk 5.) (mk 1.) in 
-	let* s = norm (mk 0.) (mk 1.) in 
-	ignore (observe ((mk 5.) -. m*.(mk 0.) -. c) Primitive.(normal 0. s));
-	s *)
+let nrm () =
+	let* x = norm (mk 0.) (mk 2.) in 
+	x
+in 
+
+let lx = List.init 10 (fun x-> Float.of_int x) in 
+let er = AD.get_samples nrm 4 0.25 9 in
+let ly' = List.map (fun x -> Float.add (Float.mul 2.0 x) 5.0) lx in
+let ly = List.map2 (fun x y -> Float.add x y) ly' er in
+(* AD.print_normal_list ly;; *)
+let ax = Array.of_list lx in 
+let ay = Array.of_list ly in 
+
+ 
+let lin () =
+	let* m = norm (mk 1.) (mk 3.) in 
+	let* c = norm (mk 4.) (mk 3.) in 
+	let* s = norm (mk 0.) (mk 3.) in 
+	ignore (
+	for i = 0 to 9 do 
+		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Primitive.logpdf Primitive.(normal 0. (get s)))
+	done );
+	m
+in 
+
+let epochs = 1000 in
+let fils = Array.of_list (AD.get_samples lin 4 0.25 epochs) in
+
+let mn = (Owl_stats.mean fils) in 
+let st = (Owl_stats.std fils) in 
+Printf.printf "Mean = %f\n" mn;
+Printf.printf "Std. Dev. = %f\n" st; 
