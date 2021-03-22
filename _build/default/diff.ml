@@ -92,11 +92,11 @@ struct
 			ls := modif_der !ls r.v r.d;
 			(r)
 		
-		| effect (Obs(tu,f)) k ->  
+		| effect (Obs(_,_)) k ->  
 			let x = {v = 0.0; d = 0.; m=1.} in
-			print_endline "in obs";
+			(* print_endline "in obs";
 			Printf.printf "Value %f\n" tu.v;
-			Printf.printf "probab %f\n" (f tu.v);
+			Printf.printf "probab %f\n" (f tu.v); *)
 			ignore (continue k x);
 			(x)
 
@@ -467,7 +467,7 @@ struct
 			
 		| effect (Obs(tu,f)) k -> begin
 			let x = {v = 0.0; d = 0.;  m=1.} in
-			(* Printf.printf "%f %f \n" tu.v (f tu.v) ;  *)
+			Printf.printf "%f %f \n" tu.v (f tu.v) ; 
 			ignore (vl := !vl -. ((f tu.v)));
 			(continue k x);
 		end		
@@ -561,10 +561,10 @@ struct
 		else
 			let q0 = List.nth samp_list (List.length samp_list - 1) in
 			let q1 = q0 in
-			let _ =
+			(* let _ =
 				if(ep mod 25 = 0) then
 					Printf.printf "Left with %d epochs\n" (ep)
-			in
+			in *)
 
 			let p0 = norm_list (List.length q1) in
 			let p1 = p0 in
@@ -573,7 +573,7 @@ struct
 			let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
 
 			(* print_normal_list q0; *)
-			(* print_normal_list q1; *)
+			print_normal_list q1;
 			(* print_normal_list dvdq; *)
 			(* print_endline "==============="; *)
 
@@ -594,7 +594,7 @@ struct
 				hmc' f li stp (ep-1) (samp_list@[q1]) pls
 			end
 			else
-				hmc' f li stp (ep) (samp_list) pls
+				hmc' f li stp (ep-1) (samp_list@[q0]) pls
 
 	let hmc (f: ( unit ->  t) ) (li:int)  (stp:float) (ep:int) : float list list =
 		let (_, smp, pls) = grad f in 
@@ -610,7 +610,7 @@ struct
 		) ls
 
 	let get_samples (f: ( unit ->  t) ) (li:int ) (stp:float) (ep:int) =
-		List.map (fun ll->  get_val f ll ) (hmc f li stp ep)
+		List.map (fun ll->  get_val f ll ) (hmc f li stp (ep-1))
 
 	let (+.) a b = 
 		perform (Add(a,b))
@@ -723,34 +723,41 @@ print_endline "+++++++++++++++++++++++++++++++++++++++";
 
 
 let nrm () =
-	let* x = norm (mk 0.) (mk 2.) in 
+	let* x = norm (mk 0.) (mk 1.) in 
 	x
 in 
 
-let lx = List.init 10 (fun x-> Float.of_int x) in 
-let er = AD.get_samples nrm 4 0.25 9 in
+let obs_points = 100 in 
+let lx = List.init obs_points (fun x-> Float.of_int x) in 
+let er = AD.get_samples nrm 4 0.25 obs_points in
 let ly' = List.map (fun x -> Float.add (Float.mul 2.0 x) 5.0) lx in
 let ly = List.map2 (fun x y -> Float.add x y) ly' er in
-(* AD.print_normal_list ly;; *)
 let ax = Array.of_list lx in 
 let ay = Array.of_list ly in 
-
+print_normal_list lx;
+print_normal_list ly;
  
 let lin () =
 	let* m = norm (mk 1.) (mk 3.) in 
 	let* c = norm (mk 4.) (mk 3.) in 
-	let* s = norm (mk 0.) (mk 3.) in 
+	let* s1 = norm (mk 0.) (mk 3.) in 
+	let* s = s1 *. s1 in 
 	ignore (
-	for i = 0 to 9 do 
+	for i = 0 to (obs_points-1) do 
 		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Primitive.logpdf Primitive.(normal 0. (get s)))
 	done );
-	m
+	c
 in 
 
-let epochs = 1000 in
-let fils = Array.of_list (AD.get_samples lin 4 0.25 epochs) in
+let epochs = 10000 in
+let fils = Array.of_list (AD.get_samples lin 2 0.005 epochs) in
 
 let mn = (Owl_stats.mean fils) in 
 let st = (Owl_stats.std fils) in 
 Printf.printf "Mean = %f\n" mn;
-Printf.printf "Std. Dev. = %f\n" st; 
+Printf.printf "Std. Dev. = %f\n=================\n" st; 
+for i = 0 to epochs-1 do
+	Printf.printf "%f \n" fils.(i);
+done ;
+Printf.printf "Mean = %f\n" mn;
+Printf.printf "Std. Dev. = %f\n=================\n" st; 
