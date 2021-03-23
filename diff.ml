@@ -81,7 +81,7 @@ struct
 		List.iter 
   		(
   			fun v -> 
-	  			Caml.Printf.printf "%f " v;
+	  			Caml.Printf.printf "%f \n" v;
   		) ls;
   		print_endline ""
 
@@ -467,7 +467,7 @@ struct
 			
 		| effect (Obs(tu,f)) k -> begin
 			let x = {v = 0.0; d = 0.;  m=1.} in
-			Printf.printf "%f %f \n" tu.v (f tu.v) ; 
+			(* Printf.printf "%f %f \n" tu.v (f tu.v) ;  *)
 			ignore (vl := !vl -. ((f tu.v)));
 			(continue k x);
 		end		
@@ -573,7 +573,7 @@ struct
 			let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
 
 			(* print_normal_list q0; *)
-			print_normal_list q1;
+			(* print_normal_list q1; *)
 			(* print_normal_list dvdq; *)
 			(* print_endline "==============="; *)
 
@@ -723,23 +723,47 @@ print_endline "+++++++++++++++++++++++++++++++++++++++";
 
 
 let nrm () =
-	let* x = norm (mk 0.) (mk 1.) in 
+	let* x = norm (mk 0.) (mk 9.) in 
 	x
 in 
 
-let obs_points = 100 in 
+let obs_points = 200 in 
 let lx = List.init obs_points (fun x-> Float.of_int x) in 
 let er = AD.get_samples nrm 4 0.25 obs_points in
-let ly' = List.map (fun x -> Float.add (Float.mul 2.0 x) 5.0) lx in
+let ly' = List.map (fun x -> Float.add (Float.mul 2.0 x) 20.0) lx in
 let ly = List.map2 (fun x y -> Float.add x y) ly' er in
 let ax = Array.of_list lx in 
 let ay = Array.of_list ly in 
-print_normal_list lx;
-print_normal_list ly;
+(* print_normal_list lx; *)
+(* print_normal_list ly; *)
  
 let lin () =
 	let* m = norm (mk 1.) (mk 3.) in 
-	let* c = norm (mk 4.) (mk 3.) in 
+	let* c = norm (mk 10.) (mk 10.) in 
+	let* s1 = norm (mk 0.) (mk 3.) in 
+	let* s = s1 *. s1 in 
+	ignore (
+	for i = 0 to (obs_points-1) do 
+		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Primitive.logpdf Primitive.(normal 0. (get s)))
+	done );
+	m
+in 
+
+let epochs = 10000 in
+let fils = Array.of_list (AD.get_samples lin 2 0.005 epochs) in
+
+let mn = (Owl_stats.mean fils) in 
+let md = (Owl_stats.median fils) in 
+Printf.printf "Mean slope = %f\n" mn;
+Printf.printf "Median slope = %f\n" md;
+(* for i = 0 to epochs-1 do
+	Printf.printf "%f \n" fils.(i);
+done ; *)
+
+
+let lin () =
+	let* m = norm (mk 1.) (mk 3.) in 
+	let* c = norm (mk 10.) (mk 10.) in 
 	let* s1 = norm (mk 0.) (mk 3.) in 
 	let* s = s1 *. s1 in 
 	ignore (
@@ -753,11 +777,11 @@ let epochs = 10000 in
 let fils = Array.of_list (AD.get_samples lin 2 0.005 epochs) in
 
 let mn = (Owl_stats.mean fils) in 
-let st = (Owl_stats.std fils) in 
-Printf.printf "Mean = %f\n" mn;
-Printf.printf "Std. Dev. = %f\n=================\n" st; 
-for i = 0 to epochs-1 do
-	Printf.printf "%f \n" fils.(i);
-done ;
-Printf.printf "Mean = %f\n" mn;
-Printf.printf "Std. Dev. = %f\n=================\n" st; 
+let md = (Owl_stats.median fils) in 
+(* let st = (Owl_stats.std fils) in  *)
+Printf.printf "Mean constant = %f\n" mn;
+Printf.printf "Median constant = %f\n" md;
+(* Printf.printf "Std. Dev. = %f\n=================\n" st;  *)
+
+
+List.iter2 (fun x y -> Printf.printf "(%f, %f) \n" x y) lx ly
