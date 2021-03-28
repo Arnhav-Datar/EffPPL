@@ -16,8 +16,8 @@ let lin obs_points ax ay () =
 	m
 ;; 
 
-let obs_points = 3 in 
-let epochs = 1000 in
+let obs_points = 200 in 
+let epochs = 10000 in
 
 let lx = List.init obs_points (fun x-> Float.of_int x) in 
 let er = get_samples nrm 4 0.05 obs_points in

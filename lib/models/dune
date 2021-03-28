@@ -1,3 +1,4 @@
 (executables
- (names linreg)
+ (modes native)
+ (names linreg sampling classification)
  (libraries effppl base owl re lwt))

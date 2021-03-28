@@ -21,6 +21,9 @@ module HMC : sig
   
   val gamma' : t -> t -> t
   val gamma : float -> float -> t
+
+  val poly': t -> t -> t -> t
+  val poly: float -> float -> int -> t
   
   val exp' : t -> t
   val exp : float -> t
@@ -92,7 +95,7 @@ struct
 		List.iter 
   		(
   			fun v -> 
-	  			Caml.Printf.printf "%f \n" v;
+	  			Caml.Printf.printf "%f " v;
   		) ls;
   		print_endline ""
 
@@ -435,6 +438,18 @@ struct
 	let gamma k t = 
 		gamma' (mk k) (mk t)
 
+	let poly' st en d =
+		perform (Mult 
+			(perform (Sub 
+				(en,st)), 
+			perform(Add(
+				st,
+				perform(Beta
+					(d,
+					(mk 1.)))))))
+	let poly st en d =
+		let d' = Float.of_int d in
+		poly' (mk st) (mk en) (mk d')
 
 
  	let observe t fu =
@@ -557,20 +572,20 @@ struct
  		List.fold_left (fun acc y -> acc -. (Primitive.logpdf (Primitive.normal 0. 1.) y)) 0. p
 
  	let get_hmc_grad f q = 
+ 		(* let () = print_normal_list q in  *)
  		let (_, dv) = get_der f q in
 		let dv = List.rev ( subs dv q [] ) in 
 		List.map (fun f -> f *. (-. 1.0)) (dv) 
 
 	let rec leapfrog (li:int ) (stp:float) (p1:float list) (q1:float list) f =
+ 		(* let () = Printf.printf "Leapfrog iteration %d\n" li in  *)
  		let dVdQ = get_hmc_grad f q1 in 
- 		(* Printf.printf "Leapfrog iteration %d\n" li; *)
  		if(li = 0) then
  			(p1, q1)
  		else 
  			let p1 = listadd p1 dVdQ (stp/.2.0) in 
  			let q1 = listadd q1 p1 1.0 in 
  			let dVdQ1 = get_hmc_grad f q1 in 
- 			(* Printf.printf "Leapfrog iteration %d\n" li; *)
  			let p1 = listadd p1 dVdQ1 (stp/.2.0) in 
  			leapfrog (li -1) stp p1 q1 f
 
@@ -580,10 +595,6 @@ struct
 		else
 			let q0 = List.nth samp_list (List.length samp_list - 1) in
 			let q1 = q0 in
-			(* let _ =
-				if(ep mod 25 = 0) then
-					Printf.printf "Left with %d epochs\n" (ep)
-			in *)
 
 			let p0 = norm_list (List.length q1) in
 			let p1 = p0 in
@@ -609,7 +620,6 @@ struct
 			let x = Float.log x' in
 			
 			if (x < acc) then begin
-				(* print_normal_list q1; *)
 				hmc' f li stp (ep-1) (samp_list@[q1]) pls
 			end
 			else
@@ -633,13 +643,10 @@ struct
 
 	let (+.) a b = 
 		perform (Add(a,b))
-  	
   	let (-.) a b = 
   		perform (Sub(a,b))
-
   	let ( *. ) a b = 
   		perform (Mult(a,b))
-  	
   	let ( /. ) a b = 
   		perform (Div(a,b))
 
