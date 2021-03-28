@@ -12,11 +12,22 @@ module AD : sig
   val ( let* ) :  t -> (t -> t ) ->  t
   val grad  : ( unit ->  t) -> (t list * float list * float Primitive.t list)
   val samp : float Primitive.t ->  t
-  val norm : t -> t -> t
-  val beta : t -> t -> t
-  val gamma : t -> t -> t
-  val exp : t -> t
-  val chi2 : t -> t
+  
+  val normal' : t -> t -> t
+  val normal : float -> float -> t
+  
+  val beta' : t -> t -> t
+  val beta : float -> float -> t
+  
+  val gamma' : t -> t -> t
+  val gamma : float -> float -> t
+  
+  val exp' : t -> t
+  val exp : float -> t
+
+  val chi2' : t -> t
+  val chi2 : float -> t
+  
   val get : t -> float
   val get_der : ( unit ->  t) -> float list -> (float * t list)
   val get_val : ( unit ->  t) -> float list -> (float)
@@ -409,17 +420,25 @@ struct
   	let samp p = 
   		perform (Samp(p))
 
-  	let norm mu si = 
+  	let normal' mu si = 
   		perform (Norm(mu,si))
+  	let normal mu si = 
+  		normal' (mk mu) (mk si)
 
-	let beta a b = 
+	let beta' a b = 
 		perform (Beta(a,b))
- 
+ 	let beta a b = 
+		beta' (mk a) (mk b)
+
+ 	let gamma' k t = 
+		perform (Gamma(k,t))
+	let gamma k t = 
+		gamma' (mk k) (mk t)
+
+
+
  	let observe t fu =
  		ignore (perform (Obs(t,fu)))
-
-	let gamma k t = 
-		perform (Gamma(k,t))
 
  	let norm_list n = 
  		List.init n (fun _ -> Primitive.sample (Primitive.normal 0. 1.)) 
@@ -598,7 +617,7 @@ struct
 
 	let hmc (f: ( unit ->  t) ) (li:int)  (stp:float) (ep:int) : float list list =
 		let (_, smp, pls) = grad f in 
-		hmc' f li stp ep [smp] pls
+		hmc' f li stp (ep-1) [smp] pls
 
 	let print_sample_list ls =
 		List.iter (fun ll -> print_normal_list ll) ls
@@ -610,7 +629,7 @@ struct
 		) ls
 
 	let get_samples (f: ( unit ->  t) ) (li:int ) (stp:float) (ep:int) =
-		List.map (fun ll->  get_val f ll ) (hmc f li stp (ep-1))
+		List.map (fun ll->  get_val f ll ) (hmc f li stp (ep))
 
 	let (+.) a b = 
 		perform (Add(a,b))
@@ -624,11 +643,15 @@ struct
   	let ( /. ) a b = 
   		perform (Div(a,b))
 
-  	let exp l =
+  	let exp' l =
 		perform (Gamma(mk 1.0, (mk 1.0) /. l )) 
+	let exp l =
+		exp' (mk l)
 
-	let chi2 k =
+	let chi2' k =
 		perform (Gamma( k /. (mk 2.0) , mk 2.0) )
+	let chi2 k =
+		chi2' (mk k)
 
   	let (let*) m f = 
   		perform (Leet(m,f))
@@ -638,7 +661,7 @@ struct
   		if b then y else n
 end;;
 
-
+(* 
 (*Test 1*)
 
 print_endline "+++++++++++++++++++++++++++++++++++++++";
@@ -647,12 +670,11 @@ print_endline "Checking Helper functions";
 print_endline "=======================================";
 print_endline "+++++++++++++++++++++++++++++++++++++++";
 
-open AD
 
 let f1 () = 
-	let* x1 = norm (mk 2.) (mk 1.) in
-	let* x2 = norm (mk 2.) (mk 1.) in
-	let* x3 = norm (mk 2.) (mk 1.) in
+	let* x1 = normal 2. 1. in
+	let* x2 = normal 2. 1. in
+	let* x3 = normal 2. 1. in
 	let* x4 = 	x1 +. x2 +. x3 in 
 	(observe x4 (Primitive.pdf (Primitive.(normal 6.0 3.0 ))));
 	let* x5 = 	x1 *. x2 *. x3 in 
@@ -723,65 +745,65 @@ print_endline "+++++++++++++++++++++++++++++++++++++++";
 
 
 let nrm () =
-	let* x = norm (mk 0.) (mk 9.) in 
+	let* x = normal 0. 0.5 in 
 	x
 in 
 
-let obs_points = 200 in 
+let obs_points = 3 in 
 let lx = List.init obs_points (fun x-> Float.of_int x) in 
 let er = AD.get_samples nrm 4 0.25 obs_points in
-let ly' = List.map (fun x -> Float.add (Float.mul 2.0 x) 20.0) lx in
+let ly' = List.map (fun x -> Float.add (Float.mul 2.0 x) 10.0) lx in
 let ly = List.map2 (fun x y -> Float.add x y) ly' er in
 let ax = Array.of_list lx in 
 let ay = Array.of_list ly in 
+
 (* print_normal_list lx; *)
 (* print_normal_list ly; *)
  
 let lin () =
-	let* m = norm (mk 1.) (mk 3.) in 
-	let* c = norm (mk 10.) (mk 10.) in 
-	let* s1 = norm (mk 0.) (mk 3.) in 
+	let* m = normal 1. 3. in 
+	let* c = normal 7. 10. in 
+	let* s1 = normal 0. 3. in 
 	let* s = s1 *. s1 in 
-	ignore (
 	for i = 0 to (obs_points-1) do 
 		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Primitive.logpdf Primitive.(normal 0. (get s)))
-	done );
+	done ;
+	(*float -> float*)
 	m
 in 
 
 let epochs = 10000 in
 let fils = Array.of_list (AD.get_samples lin 2 0.005 epochs) in
+(*10000 * 4 list*)
 
 let mn = (Owl_stats.mean fils) in 
 let md = (Owl_stats.median fils) in 
 Printf.printf "Mean slope = %f\n" mn;
 Printf.printf "Median slope = %f\n" md;
-(* for i = 0 to epochs-1 do
-	Printf.printf "%f \n" fils.(i);
-done ; *)
+
 
 
 let lin () =
-	let* m = norm (mk 1.) (mk 3.) in 
-	let* c = norm (mk 10.) (mk 10.) in 
-	let* s1 = norm (mk 0.) (mk 3.) in 
+	let* m = normal 1. 3. in 
+	let* c = normal 7. 10. in 
+	let* s1 = normal 0. 3. in 
 	let* s = s1 *. s1 in 
-	ignore (
+	
 	for i = 0 to (obs_points-1) do 
 		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Primitive.logpdf Primitive.(normal 0. (get s)))
-	done );
+	done ;
 	c
 in 
 
 let epochs = 10000 in
-let fils = Array.of_list (AD.get_samples lin 2 0.005 epochs) in
+let fil = Array.of_list (AD.get_samples lin 2 0.005 epochs) in
 
-let mn = (Owl_stats.mean fils) in 
-let md = (Owl_stats.median fils) in 
-(* let st = (Owl_stats.std fils) in  *)
+let mn = (Owl_stats.mean fil) in 
+let md = (Owl_stats.median fil) in 
 Printf.printf "Mean constant = %f\n" mn;
 Printf.printf "Median constant = %f\n" md;
-(* Printf.printf "Std. Dev. = %f\n=================\n" st;  *)
+for i = 0 to epochs-1 do
+	Printf.printf "%f %f \n" fil.(i) fils.(i);
+done ;
 
-
-List.iter2 (fun x y -> Printf.printf "(%f, %f) \n" x y) lx ly
+List.iter2 (fun x y -> Printf.printf "(%f, %f) \n" x y) lx ly *)

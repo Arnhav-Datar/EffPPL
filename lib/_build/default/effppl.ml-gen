@@ -1,0 +1,6 @@
+(** @canonical Effppl.Diff *)
+module Diff = Effppl__Diff
+
+
+(** @canonical Effppl.Primitive *)
+module Primitive = Effppl__Primitive

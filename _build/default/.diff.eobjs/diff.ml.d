@@ -1,1 +1,1 @@
-diff.ml: Array Caml Float List Owl_maths Owl_stats Primitive Printf
+diff.ml: Caml Float List Owl_maths Primitive Printf

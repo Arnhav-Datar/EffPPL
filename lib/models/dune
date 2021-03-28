@@ -1,0 +1,3 @@
+(executables
+ (names linreg)
+ (libraries effppl base owl re lwt))

@@ -1,4 +1,0 @@
-(executable
- (name diff)
- (libraries owl base))
-
