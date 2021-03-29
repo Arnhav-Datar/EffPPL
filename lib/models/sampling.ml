@@ -14,7 +14,6 @@ let f1 () =
 *)
 
 let x = get_samples f1 5 0.02 10000 in
-(* print_normal_list x1; *)
 let ax = Array.of_list x in
 let am = (Owl_stats.mean ax) in
 let ast = (Owl_stats.std ax) in

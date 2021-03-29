@@ -1,3 +1,7 @@
+(** @canonical Dune__exe.Autoreg *)
+module Autoreg = Dune__exe__Autoreg
+
+
 (** @canonical Dune__exe.Classification *)
 module Classification = Dune__exe__Classification
 

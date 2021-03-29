@@ -95,7 +95,7 @@ struct
 		List.iter 
   		(
   			fun v -> 
-	  			Caml.Printf.printf "%f " v;
+	  			Caml.Printf.printf "%f \n" v;
   		) ls;
   		print_endline ""
 
