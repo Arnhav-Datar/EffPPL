@@ -10,6 +10,10 @@ module Classification = Dune__exe__Classification
 module Linreg = Dune__exe__Linreg
 
 
+(** @canonical Dune__exe.Moving_avg *)
+module Moving_avg = Dune__exe__Moving_avg
+
+
 (** @canonical Dune__exe.Sampling *)
 module Sampling = Dune__exe__Sampling
 

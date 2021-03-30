@@ -1,4 +1,4 @@
 (executables
  (modes native)
- (names linreg sampling classification autoreg scratch)
+ (names linreg sampling classification autoreg scratch moving_avg)
  (libraries effppl base owl re lwt))
