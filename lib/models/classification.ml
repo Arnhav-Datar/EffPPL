@@ -1,5 +1,4 @@
-open Effppl.Diff.HMC;;
-
+open Effppl.Infer;;
 (*
 	Defining some of the constants
 *)

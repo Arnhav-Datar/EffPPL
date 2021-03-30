@@ -1,4 +1,4 @@
-open Effppl.Diff.HMC
+open Effppl.Infer
 
 (*
 	Used to generate randomness in the dataset

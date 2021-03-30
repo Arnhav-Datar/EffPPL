@@ -12,3 +12,7 @@ module Linreg = Dune__exe__Linreg
 
 (** @canonical Dune__exe.Sampling *)
 module Sampling = Dune__exe__Sampling
+
+
+(** @canonical Dune__exe.Scratch *)
+module Scratch = Dune__exe__Scratch

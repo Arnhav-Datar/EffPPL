@@ -1,4 +1,5 @@
-open Effppl.Diff.HMC
+open Effppl.Infer
+open Effppl.Print 
 
 (*
 	autoregressor model for time series analysis

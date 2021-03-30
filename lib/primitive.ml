@@ -281,7 +281,7 @@ let cauchy loc scale =
       let der = fun x -> (
         let vl =(Owl_stats.cauchy_pdf ~loc:loc ~scale:scale x) in
         let n2p = -6.28318530718 in
-        vl*.vl*.n2p*.(x -. loc)
+        vl*.vl*.n2p*.(x -. loc)*.scale
       )
       let params = [loc;scale]
 
@@ -337,6 +337,7 @@ let create_primitive (type a) ~sample ~pdf ~cdf ~support ~ppf ~der ~params ~logp
     let sample = sample
 
     let pdf = pdf
+    
     let logpdf = logpdf
 
     let cdf = cdf

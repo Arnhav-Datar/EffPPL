@@ -1,4 +1,4 @@
 (executables
  (modes native)
- (names linreg sampling classification autoreg)
+ (names linreg sampling classification autoreg scratch)
  (libraries effppl base owl re lwt))

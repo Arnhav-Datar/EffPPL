@@ -1,1 +1,1 @@
-models/sampling.ml: Array Effppl Owl_stats Printf
+models/sampling.ml: Effppl

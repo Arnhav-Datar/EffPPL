@@ -1,4 +1,6 @@
-open Effppl.Diff.HMC
+open Effppl.Infer
+open Effppl.Print
+
 let f1 () = 
 	let* x1 = normal 1. 3. in
 	let* x2 = normal 1. 4. in
@@ -14,11 +16,8 @@ let f1 () =
 *)
 
 let x = get_samples f1 5 0.02 10000 in
-let ax = Array.of_list x in
-let am = (Owl_stats.mean ax) in
-let ast = (Owl_stats.std ax) in
-Printf.printf "Mean = %f \n" am;
-Printf.printf "Std. Dev. = %f \n" ast;
+print_statistics x
+
 (*
 	We therefore expect for large enough samples 
 	mean = 2
