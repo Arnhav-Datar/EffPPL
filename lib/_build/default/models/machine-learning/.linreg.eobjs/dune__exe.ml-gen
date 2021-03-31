@@ -1,0 +1,6 @@
+(** @canonical Dune__exe.Classification *)
+module Classification = Dune__exe__Classification
+
+
+(** @canonical Dune__exe.Linreg *)
+module Linreg = Dune__exe__Linreg
