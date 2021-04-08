@@ -12,6 +12,8 @@ module type S' = sig
 	
 	val print_statistics : float list -> unit
 
+	val print_to_file : float list-> string -> unit 
+
 end 
 
 module Print : S' =
@@ -53,6 +55,14 @@ struct
 		let std = get_std ls in 
 		let var = get_var ls in
 		Printf.printf "Std. Dev. = %f \n" std; 
-		Printf.printf "Variance = %f \n" var; 
+		Printf.printf "Variance = %f \n" var
+
+	let print_to_file ls nm = 
+		let oc = open_out nm in
+		List.iter 
+  		(
+  			fun v -> 
+	  			Caml.Printf.fprintf oc "%f \n" v;
+  		) ls
 
 end;;

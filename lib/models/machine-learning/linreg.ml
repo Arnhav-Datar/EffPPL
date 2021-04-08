@@ -1,4 +1,5 @@
-open Effppl.Infer
+open Effppl.Infer;;
+open Effppl.Print;; 
 
 (*
 	Used to generate randomness in the dataset
@@ -14,19 +15,17 @@ let nrm () =
 let lin obs_points ax ay () =
 	(*Some prior we know *)
 	let* m = normal 2. 3. in 
-	let* c = normal 7. 10. in 
-	let* s1 = normal 0. 3. in 
-	let* s = s1 *. s1 in 
+	let* c = normal 0. 10. in 
 
 	(*Observations*)
 	for i = 0 to (obs_points-1) do 
-		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Effppl.Primitive.logpdf Effppl.Primitive.(normal 0. (get s)))
+		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Effppl.Primitive.logpdf Effppl.Primitive.(normal 0. 4.))
 	done ;
 	m
 ;; 
 
 (*setting constants*)
-let epochs = 1000 in
+let epochs = 10000 in
 
 (*Creating the necessary x and y data*)
 let lx = [ 5.163986277024462 ; 5.706675868681398 ; 0.2847422647809694 ; 1.7152165622510307 ; 6.852769816973126 ; 8.338968626360765 ; 3.069662196722378 ; 8.936130796833973 ; 7.215438617683047 ; 1.8993895420479678 ; 5.542275911247872 ; 3.5213195402661412 ; 1.8189240266007867 ; 7.856017618643588 ; 9.654832224119692 ; 2.3235366181476067 ; 0.8356143366334368 ; 6.035484222912185 ; 7.289927572876178 ; 2.762388284972628 ; 6.853063287801783 ; 5.1786747419704735 ; 0.48484537426400576 ; 1.3786923756210612 ; 1.8696742613792106 ; 9.94317901154097 ; 5.206653966849669 ; 5.787895354754169 ; 7.348190582693819 ; 5.419617722295936 ; 9.131535576757685 ; 8.079201509879171 ; 4.029978306937874 ; 3.5722434282078783 ; 9.528767147108733 ; 3.4363157789255983 ; 8.65099816318328 ; 8.302777121987969 ; 5.381614492475574 ; 9.224693725672235 ; 0.9714647976501556 ; 1.0284749316074948 ; 7.015072956958257 ; 8.904798691284313 ; 1.5956030089820405 ; 2.755725448969536 ; 6.724915296568056 ; 1.6430312402017022 ; 7.013711366090863 ; 4.876352222057281 ; 6.806777681763588 ; 5.215481923258594 ; 0.4339669443408434 ; 2.2393660350197764 ; 5.752050868680129 ; 1.204336601272924 ; 5.001167138007933 ; 1.3800956825889599 ; 0.5280840108926621 ; 1.7827692253615168 ; 4.423681315127448 ; 8.775873246276348 ; 9.492641289851939 ; 4.781674167895694 ; 4.611193422864347 ; 6.37289031017357 ; 3.24607996437537 ; 1.1757809302799405 ; 0.5110099639577459 ; 6.376586528178253 ; 8.122658949111644 ; 6.702604203336357 ; 6.517677034763693 ; 4.2456894356178445 ; 6.565953361995259 ; 2.0916149886092485 ; 6.599245188671674 ; 5.296233987530145 ; 7.485203698504924 ; 0.9375685586925797 ; 7.845218499756546 ; 6.872420375766887 ; 6.950784965081013 ; 4.96866519596742 ; 9.753611270341379 ; 2.0352762060152108 ; 2.9902040965281165 ; 2.276558927941932 ; 0.4816888544201381 ; 9.03971357452612 ; 0.8010353867413278 ; 6.07216271786098 ; 6.3084670363151325 ; 3.7794193189640257 ; 0.13241011086396526 ; 8.422194118509257 ; 3.8493774606244435 ; 5.516658450763543 ; 7.105381400635508 ; 6.752788507190295 ] in 
@@ -41,14 +40,23 @@ let ax = Array.of_list lx in
 let ay = Array.of_list ly in 
 
 (*Doing the inference and computing the results.*)
-let fils = (hmc (lin obs_points ax ay) 4 0.05 epochs) in
+let fils = (hmc (lin obs_points ax ay) 4 0.02 epochs) in
 let mcl = List.map (fun ls -> (List.nth ls 0, List.nth ls 1)) fils in 
 let sm =  List.map (fun (ax, _) -> ax) mcl in  
 let sma =  Array.of_list sm in  
 let sc =  List.map (fun (_, ay) -> ay) mcl in  
 let sca =  Array.of_list sc in  
 
-let mns = Owl_stats.mean sma in 
-let mnc = Owl_stats.mean sca in
+let _ = Owl_stats.mean sma in 
+let _ = Owl_stats.mean sca in
 
-Printf.printf "%f %f \n" mns mnc; 
+print_endline "The slope when sampled generated(original was 3):- ";
+print_statistics sm;
+(* print_normal_list sm; *)
+
+print_endline "The constant when sampled generated(original was 2):- ";
+print_statistics sc;
+
+print_to_file sm "linreg_slopes.txt"; 
+print_to_file sc "linreg_cons.txt"; 
+(* print_normal_list sc; *)

@@ -17,3 +17,8 @@ print("[", end="")
 for i in range(len(ls)):
 	print(ls[i], end=" ;")
 print("\b]")
+
+print("[", end="")
+for i in range(len(ls)):
+	print(ls[i], end=" ,")
+print("\b]")

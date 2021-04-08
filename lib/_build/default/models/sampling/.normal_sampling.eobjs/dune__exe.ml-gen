@@ -1,0 +1,6 @@
+(** @canonical Dune__exe.Beta_sampling *)
+module Beta_sampling = Dune__exe__Beta_sampling
+
+
+(** @canonical Dune__exe.Normal_sampling *)
+module Normal_sampling = Dune__exe__Normal_sampling

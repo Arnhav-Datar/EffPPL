@@ -1,5 +1,14 @@
 exception Unknown
 
+open Primitive
+
+(* type 'a support =
+  | DiscreteFinite of 'a list
+  | DiscreteInfinite
+  | ContinuousFinite of ('a * 'a) list
+  | ContinuousInfinite
+  | ContinuousPositive of 'a
+  | Merged of 'a support * 'a support *)
 
 module type S = sig
   
@@ -44,6 +53,8 @@ module type S = sig
 
 	val get_samples: ( unit ->  t)  -> int -> float -> int -> float list
 	val observe: t -> (float -> float) -> unit
+
+	val listadd': float list -> float list -> float -> int -> float list
 
 end 
 
@@ -496,10 +507,21 @@ struct
  	let norm_list n = 
  		List.init n (fun _ -> Primitive.sample (Primitive.normal 0. 1.)) 
 
- 	let listadd l1 l2 mul= 
- 		List.map2 (fun x y -> x +. (y *. mul) ) l1 l2 
+ 	let rec listadd' l1 l2 mul ind =
+ 		match l1 with
+ 		| [] -> []
+ 		| h1::t1 -> begin
+ 			match l2 with 
+ 			| [] -> raise Unknown
+ 			| h2::t2 -> 
+ 				if(ind = 0) then
+ 					(h1 +. (mul *. h2))::(listadd' t1 t2 mul (ind-1))
+ 				else
+ 					(h1)::(listadd' t1 t2 mul (ind-1))
+ 		end
 
- 	
+ 	let listadd l1 l2 mul= 
+ 		List.map2 (fun x y -> x +. (y *. mul) ) l1 l2
 
  	let rec subs l1 l2 l3= 
  		match l1 with 
@@ -610,19 +632,27 @@ struct
 		let rsls = ref sls in 
 		let vl = ref 0.0 in 
 		let _ = ( get_obs_log' f rsls vl) in
-		(* Printf.printf "%f\n" !vl; *)
 		(!vl)
 
 
  	let nlp q pls f =
  		assert(List.length q = List.length pls);
- 		let a1 = List.fold_left2 ( fun acc y p -> acc -. (Primitive.logpdf p y)) 0. q pls in 
+ 		let a1 = List.fold_left2 
+ 		( 
+ 			fun acc y p -> 
+ 			acc -. (Primitive.logpdf p y)
+ 		) 0. q pls in 
  		let a2 = get_obs_log f q in 
- 		(* Printf.printf "%f %f\n" a1 a2;  *)
  		a1 +. a2 
 
  	let nlp1 p = 
- 		List.fold_left (fun acc y -> acc -. (Primitive.logpdf (Primitive.normal 0. 1.) y)) 0. p
+ 		List.fold_left 
+ 		(	
+ 			fun acc y -> 
+ 				acc -. (Primitive.logpdf (Primitive.normal 0. 1.) y)
+ 		) 0. p
+
+
 
  	let get_hmc_grad f q = 
  		(* let () = print_normal_list q in  *)
@@ -630,17 +660,84 @@ struct
 		let dv = List.rev ( subs dv q [] ) in 
 		List.map (fun f -> f *. (-. 1.0)) (dv) 
 
-	let rec leapfrog (li:int ) (stp:float) (p1:float list) (q1:float list) f =
- 		(* let () = Printf.printf "Leapfrog iteration %d\n" li in  *)
- 		let dVdQ = get_hmc_grad f q1 in 
- 		if(li = 0) then
- 			(p1, q1)
- 		else 
- 			let p1 = listadd p1 dVdQ (stp/.2.0) in 
- 			let q1 = listadd q1 p1 1.0 in 
- 			let dVdQ1 = get_hmc_grad f q1 in 
- 			let p1 = listadd p1 dVdQ1 (stp/.2.0) in 
- 			leapfrog (li -1) stp p1 q1 f
+	
+
+
+ 	let rec check_single_support s vl =
+ 		match s with 
+ 		| ContinuousPositive v -> begin
+ 			if(vl > v) then 
+ 				true
+ 			else
+ 				false
+ 		end
+ 		| ContinuousInfinite -> begin
+ 			true
+ 		end
+ 		| ContinuousFinite ls -> begin
+ 			match ls with 
+ 			| [] -> true 
+ 			| hd :: tl -> 
+ 				match hd with (v1,v2) ->
+ 				if(v1 < vl && vl < v2) then begin 
+ 					check_single_support (ContinuousFinite tl) (vl)
+ 				end else
+ 					false
+ 		end
+ 		| _ -> raise Unknown
+
+
+ 	let check_in_support q pls = 
+ 		assert(List.length q = List.length pls);
+ 		List.fold_left2
+ 		(
+ 			fun bl q p ->
+ 				if (bl = false) then
+ 					bl
+ 				else
+ 					let sp = Primitive.support p in 
+ 					if (check_single_support sp q) then
+ 						bl
+ 					else
+ 						false
+ 		) true q pls
+
+
+
+	let rec leapfrog (li:int ) (stp:float) (p1:float list) (q1:float list) f pls =
+		let b1 = check_in_support q1 pls in
+		if b1 then 
+		begin
+	 		let dVdQ = get_hmc_grad f q1 in 
+	 		let len = List.length dVdQ in 
+	 		let _ = Random.int(len) in 
+	 		
+	 		if(li = 0) then 
+	 		begin
+	 			Some (p1, q1)
+	 		end
+	 		else begin
+	 			let p1 = listadd p1 dVdQ (stp/.2.0) (* t1 *) in 
+	 			let q1 = listadd q1 p1 1.0 (* t1 *) in 
+				let b2 = check_in_support q1 pls in
+	 			if (b2) then 
+	 			begin
+		 			let dVdQ1 = get_hmc_grad f q1 in 
+		 			let p1 = listadd p1 dVdQ1 (stp/.2.0) (* t1 *) in 
+		 			leapfrog (li -1) stp p1 q1 f pls			
+		 		end 
+		 		else 
+		 		begin
+		 			None
+		 		end
+		 	end
+		end
+		else 
+		begin
+			None
+		end
+
+
 
 	let rec hmc' (f: ( unit ->  t) ) (li:int) (stp:float) (ep:int) (samp_list: float list list) pls =
 		if(ep=0) then
@@ -652,32 +749,36 @@ struct
 			let p0 = norm_list (List.length q1) in
 			let p1 = p0 in
 
-			let (p1, q1) = leapfrog li stp p1 q1 f in
-			let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
+			let x = leapfrog li stp p1 q1 f pls in
+			match x with 
+			| None -> hmc' f li stp ep samp_list pls
+			| Some (p1, q1) -> begin
+				let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
 
-			(* print_normal_list q0; *)
-			(* print_normal_list q1; *)
-			(* print_normal_list dvdq; *)
-			(* print_endline "==============="; *)
+				if ((check_in_support q0 pls) && (check_in_support q1 pls)) then begin
 
-			let p0p = nlp1 p0 in
-			let p1p = nlp1 p1 in
-			let q0p = nlp q0 pls f in
-			let q1p = nlp q1 pls f in
+					let p0p = nlp1 p0 in
+					let p1p = nlp1 p1 in
+					let q0p = nlp q0 pls f in
+					let q1p = nlp q1 pls f in
 
-			let tgt = q0p -. q1p in
-			let adj = p1p -. p0p in 
-			let acc = tgt +. adj in
+					let tgt = q0p -. q1p in
+					let adj = p1p -. p0p in 
+					let acc = tgt +. adj in
 
-			let x' = Primitive.sample (Primitive.continuous_uniform 0. 1.) in
-			let x = Float.log x' in
-			
-			if (x < acc) then begin
-				hmc' f li stp (ep-1) (samp_list@[q1]) pls
+					let x' = Primitive.sample (Primitive.continuous_uniform 0. 1.) in
+					let x = Float.log x' in
+					
+					if (x < acc) then begin
+						hmc' f li stp (ep-1) (samp_list@[q1]) pls
+					end
+					else
+						hmc' f li stp (ep-1) (samp_list@[q0]) pls
+				end
+				else 
+					hmc' f li stp ep samp_list pls
 			end
-			else
-				hmc' f li stp (ep-1) (samp_list@[q0]) pls
-
+				
 	let hmc (f: ( unit ->  t) ) (li:int)  (stp:float) (ep:int) : float list list =
 		let (_, smp, pls) = grad f in 
 		hmc' f li stp (ep-1) [smp] pls

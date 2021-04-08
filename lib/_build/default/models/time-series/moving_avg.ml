@@ -26,7 +26,7 @@ let ma obs_points ay () =
 			let* t2 = ep2 in 
 			let* ep1 = t2 in 
 			let* ep2 = (mk ay.(i)) -. (mu) -. (th1*.ep1) -. (th2*.t1)  in 
-			Printf.printf "%f\n" (get ep2);
+			(* Printf.printf "%f\n" (get ep2); *)
 			observe (ep2) (Effppl.Primitive.logpdf Effppl.Primitive.(normal 0. 2.));
 			(mk 1.)
 		)

@@ -8,6 +8,7 @@ type 'a support =
   | DiscreteInfinite
   | ContinuousFinite of ('a * 'a) list (* set of endpoints *)
   | ContinuousInfinite
+  | ContinuousPositive of 'a
   | Merged of 'a support * 'a support
 
 (* type 'a support = Discrete of 'a list | Continuous *)
@@ -38,6 +39,7 @@ module type PRIM_DIST = sig
   val params : t list
 
   val support : t support
+  
 end
 
 type 'a t = (module PRIM_DIST with type t = 'a)
@@ -179,7 +181,7 @@ let gamma shape scale =
 	    let logpdf = Owl_stats.gamma_logpdf ~shape ~scale
 	    let cdf = Owl_stats.gamma_cdf ~shape ~scale
 	    let ppf _ = raise NotImplemented
-	    let support = ContinuousInfinite
+	    let support = ContinuousPositive 0.
       let der = fun x -> (
         let vl =  Owl_stats.gamma_pdf ~shape:shape ~scale:scale x in
         vl*. (((shape -. 1.) /. x) -. (1. /. scale))
