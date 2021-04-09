@@ -150,8 +150,10 @@ struct
 			(x)
 		
 		| effect (Leet(m,f')) _ ->
+			(* print_endline "in let"; *)
 			let x = {v = m.v; d = 0.0; m=m.m} in 
 			ls := !ls@[x];
+			(* List.iter (fun {v=v'; d=_; m=_} -> Printf.printf "%f " v';) !ls; print_endline ""; *)
 			let (x1) = (run_grad (fun () -> f' m) ls sls pls) in
 			(x1)
 
@@ -165,6 +167,9 @@ struct
 			let v2 = Primitive.logder p v1 in
 			let x = {v=v1; d=0.0 ; m= v2 } in
 			ignore (continue k x);
+			(*print_endline "in norm";
+			Printf.printf "Finding %f\n" v1;
+			List.iter (fun {v=v'; d=_; m=_} -> Printf.printf "%f " v';) !ls; print_endline ""; *)
 			let dn = find_list v1 !ls  in 
 			ls := modif_der !ls v1 (dn *. v2);
 			ls := modif_der !ls m (mu.d +. x.d *. v2);
@@ -226,6 +231,7 @@ struct
   		let rls = ref [] in 
   		let sls = ref [] in 
   		let pls = ref [] in 
+		(* print_endline "-2";		 *)
 		let _ = run_grad f rls sls pls in 
 		(!rls,!sls,!pls)
 

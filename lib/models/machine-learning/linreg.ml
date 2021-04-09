@@ -1,3 +1,5 @@
+open Effppl;;
+open Effppl.Primitive;;
 open Effppl.Infer;;
 open Effppl.Print;; 
 
@@ -13,13 +15,14 @@ let nrm () =
 	The linear regression model
 *)
 let lin obs_points ax ay () =
-	(*Some prior we know *)
+	(*Some priors we know *)
 	let* m = normal 2. 3. in 
 	let* c = normal 0. 10. in 
+	let* s = exp 5. in 
 
 	(*Observations*)
 	for i = 0 to (obs_points-1) do 
-		observe ((mk ay.(i)) -. m*.(mk ax.(i)) -. c) (Effppl.Primitive.logpdf Effppl.Primitive.(normal 0. 4.))
+		observe (mk ay.(i) -. m*.mk ax.(i) -. c) (logpdf Primitive.(normal 0. (get s)))
 	done ;
 	m
 ;; 

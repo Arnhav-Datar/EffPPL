@@ -40,7 +40,11 @@ plt.scatter(x, y)
 
 plt.xlabel('$x$')
 plt.ylabel('$y$')
-plt.title('Scatter Plot of Data')
+plt.title('Fitted line')
+alpha_mean = 1.83
+beta_mean = 3.0
+
+plt.plot(x, alpha_mean + beta_mean * x)
 
 plt.show()
 
@@ -81,6 +85,8 @@ for i in range(len(alpha)):
 # Plot mean regression line
 print(alpha_mean)
 print(beta_mean)
+alpha_mean = 3.0
+beta_mean = 1.83
 
 plt.plot(x_plot, alpha_mean + beta_mean * x_plot)
 plt.scatter(x, y)

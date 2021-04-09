@@ -2,5 +2,17 @@
 module Beta_sampling = Dune__exe__Beta_sampling
 
 
+(** @canonical Dune__exe.Chi2_sampling *)
+module Chi2_sampling = Dune__exe__Chi2_sampling
+
+
+(** @canonical Dune__exe.Cont_sampling *)
+module Cont_sampling = Dune__exe__Cont_sampling
+
+
+(** @canonical Dune__exe.Exp_sampling *)
+module Exp_sampling = Dune__exe__Exp_sampling
+
+
 (** @canonical Dune__exe.Normal_sampling *)
 module Normal_sampling = Dune__exe__Normal_sampling
