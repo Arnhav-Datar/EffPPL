@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import sys
 
 sns.set()  
 np.random.seed(101)
@@ -41,22 +42,20 @@ plt.scatter(x, y)
 plt.xlabel('$x$')
 plt.ylabel('$y$')
 plt.title('Fitted line')
-alpha_mean = 1.83
-beta_mean = 3.0
-
-plt.plot(x, alpha_mean + beta_mean * x)
-
-plt.show()
 
 # Put our data in a dictionary
 data = {'N': len(x), 'x': x, 'y': y}
 
-sm = pystan.StanModel(model_code=model)
-with open('regression_model.pkl', 'wb') as f:
-    pickle.dump(sm, f)
+# sm = pystan.StanModel(model_code=model)
+# with open('regression_model.pkl', 'wb') as f:
+#     pickle.dump(sm, f)
+
+sm = pickle.load(open('regression_model.pkl', 'rb'))
 
 # Train the model and generate samples
-fit = sm.sampling(data=data, iter=1000, chains=1, warmup=100, thin=1, seed=101, verbose=False)
+# epochs = (int)((int)(sys.argv[1]) * (10**0.5))
+epochs = (int)((int)(sys.argv[1]) * 1)
+fit = sm.sampling(data=data, iter= epochs, chains= 4, warmup= 7, thin=1, seed=101, verbose=False)
 print(fit)
 
 ## Diagnostics #################################################################
@@ -73,26 +72,28 @@ sigma = fit['sigma']
 lp = fit['lp__']
 
 # Plotting regression line
-x_min, x_max = -0.5, 10.5
-x_plot = np.linspace(x_min, x_max, 100)
+# x_min, x_max = -0.5, 10.5
+# x_plot = np.linspace(x_min, x_max, 100)
 
-# Plot a subset of sampled regression lines
-np.random.shuffle(alpha), np.random.shuffle(beta)
-for i in range(len(alpha)):
-  plt.plot(x_plot, alpha[i] + beta[i] * x_plot, color='lightsteelblue', 
-           alpha=0.005 )
+# # Plot a subset of sampled regression lines
+# np.random.shuffle(alpha), np.random.shuffle(beta)
+# for i in range(len(alpha)):
+#   plt.plot(x_plot, alpha[i] + beta[i] * x_plot, color='lightsteelblue', 
+#            alpha=0.005 )
 
 # Plot mean regression line
 print(alpha_mean)
 print(beta_mean)
-alpha_mean = 3.0
-beta_mean = 1.83
 
-plt.plot(x_plot, alpha_mean + beta_mean * x_plot)
-plt.scatter(x, y)
+f1 = open('results.txt', "a")
+f1.write(str(epochs)+" "+str(alpha_mean)+" "+str(beta_mean)+"\n")
+f1.close()
 
-plt.xlabel('$x$')
-plt.ylabel('$y$')
-plt.title('Fitted Regression Line')
-plt.xlim(x_min, x_max)
-plt.show()
+# plt.plot(x_plot, alpha_mean + beta_mean * x_plot)
+# plt.scatter(x, y)
+
+# plt.xlabel('$x$')
+# plt.ylabel('$y$')
+# plt.title('Fitted Regression Line')
+# plt.xlim(x_min, x_max)
+# plt.show()

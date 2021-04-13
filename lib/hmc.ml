@@ -749,7 +749,7 @@ struct
 		if(ep=0) then
 			samp_list
 		else
-			let q0 = List.nth samp_list (List.length samp_list - 1) in
+			let q0 = List.nth samp_list 0 in
 			let q1 = q0 in
 
 			let p0 = norm_list (List.length q1) in
@@ -757,7 +757,8 @@ struct
 
 			let x = leapfrog li stp p1 q1 f pls in
 			match x with 
-			| None -> hmc' f li stp ep samp_list pls
+			| None -> 
+				hmc' f li stp ep samp_list pls
 			| Some (p1, q1) -> begin
 				let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
 
@@ -776,10 +777,10 @@ struct
 					let x = Float.log x' in
 					
 					if (x < acc) then begin
-						hmc' f li stp (ep-1) (samp_list@[q1]) pls
+						hmc' f li stp (ep-1) (q1 :: samp_list) pls
 					end
 					else
-						hmc' f li stp (ep-1) (samp_list@[q0]) pls
+						hmc' f li stp (ep-1) (q0 :: samp_list) pls
 				end
 				else 
 					hmc' f li stp ep samp_list pls

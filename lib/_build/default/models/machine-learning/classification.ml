@@ -18,7 +18,8 @@ let lin obs_points ax1 ax2 ay () =
 	let* m1 = normal 0. 2. in 
 	let* m2 = normal 0. 2. in 
 	for i = 0 to (obs_points-1) do 
-		observe (m1*.(mk ax1.(i)) +. m2*.(mk ax2.(i)) +. (mk 1.0)) (fun x -> if( (Float.mul x ay.(i)) > 0.) then 0.4 else -0.4)
+		observe (m1*.(mk ax1.(i)) +. m2*.(mk ax2.(i)) +. (mk 1.0)) 
+		(fun x -> if( (Float.mul x ay.(i)) > 0.) then 1.0 else -1.0)
 	done;
 	m1
 in

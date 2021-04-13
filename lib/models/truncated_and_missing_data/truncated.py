@@ -5,7 +5,8 @@ le = 100
 ls = []
 while len(ls) < le :
 	a = np.random.randn()
-	if (a < 2.0 and a> -2.0):
+	# if (a < 2.0 and a> -2.0):
+	if True:
 		ls.append(a)
 
 print("[", end="")

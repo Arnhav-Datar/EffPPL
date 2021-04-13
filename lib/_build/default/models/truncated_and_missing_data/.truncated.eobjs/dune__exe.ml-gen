@@ -1,0 +1,6 @@
+(** @canonical Dune__exe.Missing *)
+module Missing = Dune__exe__Missing
+
+
+(** @canonical Dune__exe.Truncated *)
+module Truncated = Dune__exe__Truncated

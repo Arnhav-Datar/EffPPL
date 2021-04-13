@@ -42,7 +42,7 @@ x_plot = np.linspace(x_min, x_max, 100)
 
 np.random.shuffle(alpha), np.random.shuffle(beta)
 for i in range(len(alpha)):
-  plt.plot(x_plot, alpha[i] + beta[i] * x_plot, color='lightsteelblue', alpha=0.006 )
+  plt.plot(x_plot, alpha[i] + beta[i] * x_plot, color='lightsteelblue', alpha=0.003 )
 
 
 # x = 10 * np.random.rand(100)
@@ -61,6 +61,6 @@ y = np.random.normal(y, scale=sigma)
 plt.scatter(x, y)
 
 
-plt.plot(x, am + bm * x)
-
+plt.plot(x, am + bm * x, color='black')
+plt.savefig('linreg.png')
 plt.show()
