@@ -3,11 +3,11 @@ import numpy as np
 
 ls = [1]
 cn = 100
-alp = 1
-bet = 1.05
+alp = 0.5
+bet = 1.03
 
 for i in range(cn):
-	nxt = np.random.randn() / 4 
+	nxt = np.random.randn() / 5 
 	prv = ls[-1]
 	nxt += prv * bet
 	nxt += alp

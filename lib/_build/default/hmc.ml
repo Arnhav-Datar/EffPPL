@@ -55,7 +55,8 @@ module type S = sig
 	val observe: t -> (float -> float) -> unit
 
 	val listadd': float list -> float list -> float -> int -> float list
-
+	val print_list : t list -> unit
+	
 end 
 
 module Infer : S =
@@ -82,6 +83,13 @@ struct
 	effect Gamma : t * t ->  t
 	effect Leet : t * (t -> t) -> t
 	
+	let print_list ls = 
+		List.iter 
+  		(
+  			fun {v=v'; d=d'; m=_} -> 
+	  			Caml.Printf.printf "%f %f \n" v' (d');
+  		) ls
+
 	
 	let rec find_list v ls = 
 		match ls with 
@@ -101,6 +109,7 @@ struct
   	let rec run_grad f ls sls pls=
 		match f () with
 		| r -> 
+			(* print_endline "in r"; *)
 			r.d <- 1.0; 
 			ls := modif_der !ls r.v r.d;
 			(r)
@@ -114,6 +123,7 @@ struct
 			(x)
 
 		| effect (Add(a,b)) k ->
+			(* print_endline "in add"; *)
 			let x = {v = a.v +. b.v; d = 0.; m=1.} in
 			ignore (continue k x);
 			a.d <- a.d +. x.d;
@@ -132,6 +142,7 @@ struct
 			(x)
 		
 		| effect (Mult(a,b)) k ->
+			(* print_endline "in mult"; *)
 			let x = {v = a.v *. b.v; d = 0.;  m=1.} in
 			ignore (continue k x);
 			a.d <- a.d +. (b.v *. x.d);
@@ -171,7 +182,7 @@ struct
 			Printf.printf "Finding %f\n" v1;
 			List.iter (fun {v=v'; d=_; m=_} -> Printf.printf "%f " v';) !ls; print_endline ""; *)
 			let dn = find_list v1 !ls  in 
-			ls := modif_der !ls v1 (dn *. v2);
+			ls := modif_der !ls v1 (dn (* *. v2 *));
 			ls := modif_der !ls m (mu.d +. x.d *. v2);
 			let vf = (((v1 -. m) *. (v1 -. m)) -. (s *. s))/. (s *. s *. s) in
 			ls := modif_der !ls s (si.d +. x.d *. vf);

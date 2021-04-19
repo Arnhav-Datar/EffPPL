@@ -47,6 +47,7 @@ plt.title('Fitted line')
 data = {'N': len(x), 'x': x, 'y': y}
 
 # sm = pystan.StanModel(model_code=model)
+# add line here and sampling
 # with open('regression_model.pkl', 'wb') as f:
 #     pickle.dump(sm, f)
 
@@ -55,7 +56,9 @@ sm = pickle.load(open('regression_model.pkl', 'rb'))
 # Train the model and generate samples
 # epochs = (int)((int)(sys.argv[1]) * (10**0.5))
 epochs = (int)((int)(sys.argv[1]) * 1)
-fit = sm.sampling(data=data, iter= epochs, chains= 4, warmup= 7, thin=1, seed=101, verbose=False)
+
+fit = sm.sampling(data=data, iter= epochs, chains= 1, warmup= 1, thin=1, seed=101, verbose=False)
+
 print(fit)
 
 ## Diagnostics #################################################################

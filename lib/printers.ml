@@ -4,7 +4,6 @@ module type S' = sig
   
 	type t
 	
-	val print_list : t list -> unit
 	
 	val print_normal_list : float list -> unit
 	
@@ -22,12 +21,7 @@ struct
 
 	type t = { v : float;  mutable d : float ; m : float}
 
-	let print_list ls = 
-		List.iter 
-  		(
-  			fun {v=v'; d=d'; m=_} -> 
-	  			Caml.Printf.printf "%f %f \n" v' (d');
-  		) ls
+	
 
   	let print_normal_list ls = 
 		List.iter 
