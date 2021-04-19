@@ -1,0 +1,22 @@
+(** @canonical Dune__exe.Lin10 *)
+module Lin10 = Dune__exe__Lin10
+
+
+(** @canonical Dune__exe.Lin2 *)
+module Lin2 = Dune__exe__Lin2
+
+
+(** @canonical Dune__exe.Lin20 *)
+module Lin20 = Dune__exe__Lin20
+
+
+(** @canonical Dune__exe.Lin30 *)
+module Lin30 = Dune__exe__Lin30
+
+
+(** @canonical Dune__exe.Lin40 *)
+module Lin40 = Dune__exe__Lin40
+
+
+(** @canonical Dune__exe.Lin5 *)
+module Lin5 = Dune__exe__Lin5

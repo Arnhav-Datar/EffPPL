@@ -6,6 +6,7 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import sys
+import time
 
 sns.set()  
 np.random.seed(101)
@@ -57,9 +58,11 @@ sm = pickle.load(open('regression_model.pkl', 'rb'))
 # epochs = (int)((int)(sys.argv[1]) * (10**0.5))
 epochs = (int)((int)(sys.argv[1]) * 1)
 
-fit = sm.sampling(data=data, iter= epochs, chains= 1, warmup= 1, thin=1, seed=101, verbose=False)
+st = time.time()
+fit = sm.sampling(data=data, iter= epochs, chains= 4, warmup= 7, thin=1, seed=101, verbose=False)
+en = time.time()
 
-print(fit)
+# print(fit)
 
 ## Diagnostics #################################################################
 
@@ -87,6 +90,8 @@ lp = fit['lp__']
 # Plot mean regression line
 print(alpha_mean)
 print(beta_mean)
+
+print("("+str(epochs)+","+str(en - st)+")")
 
 f1 = open('results.txt', "a")
 f1.write(str(epochs)+" "+str(alpha_mean)+" "+str(beta_mean)+"\n")

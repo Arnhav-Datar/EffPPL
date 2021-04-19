@@ -42,7 +42,9 @@ let ax = Array.of_list lx in
 let ay = Array.of_list ly in 
 
 (*Doing the inference and computing the results.*)
+let st = Unix.gettimeofday () in
 let fils = (hmc (lin obs_points ax ay) 4 0.125 epochs) in
+Printf.printf "Execution time: %f seconds\n" (Float.sub (Unix.gettimeofday ()) st);
 let mcl = List.map (fun ls -> (List.nth ls 0, List.nth ls 1)) fils in 
 let sm =  List.map (fun (ax, _) -> ax) mcl in  
 let sma =  Array.of_list sm in  
