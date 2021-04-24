@@ -756,7 +756,7 @@ struct
 
 
 
-	let rec hmc' (f: ( unit ->  t) ) (li:int) (stp:float) (ep:int) (samp_list: float list list) pls =
+	let rec hmc' (f: ( unit ->  t) ) (li:int) (stp:float) (ep:int) (samp_list: float list list) (tot_ep:int)  pls =
 		if(ep=0) then
 			samp_list
 		else
@@ -766,10 +766,12 @@ struct
 			let p0 = norm_list (List.length q1) in
 			let p1 = p0 in
 
+			
+
 			let x = leapfrog li stp p1 q1 f pls in
 			match x with 
 			| None -> 
-				hmc' f li stp ep samp_list pls
+				hmc' f li stp ep samp_list tot_ep pls
 			| Some (p1, q1) -> begin
 				let p1 = List.map (fun f -> f *. (-. 1.0)) p1 in 
 
@@ -786,20 +788,23 @@ struct
 
 					let x' = Primitive.sample (Primitive.continuous_uniform 0. 1.) in
 					let x = Float.log x' in
-					
+					let () = 
+					if((ep mod ((tot_ep)/10)) = 0 ) then 
+						Printf.printf "%d epochs done\n" (tot_ep-ep)
+					in 
 					if (x < acc) then begin
-						hmc' f li stp (ep-1) (q1 :: samp_list) pls
+						hmc' f li stp (ep-1) (q1 :: samp_list) tot_ep pls
 					end
 					else
-						hmc' f li stp (ep-1) (q0 :: samp_list) pls
+						hmc' f li stp (ep-1) (q0 :: samp_list) tot_ep pls
 				end
 				else 
-					hmc' f li stp ep samp_list pls
+					hmc' f li stp ep samp_list tot_ep pls
 			end
 				
 	let hmc (f: ( unit ->  t) ) (li:int)  (stp:float) (ep:int) : float list list =
 		let (_, smp, pls) = grad f in 
-		hmc' f li stp (ep-1) [smp] pls
+		hmc' f li stp (ep-1) [smp] ep pls
 
 
 	let get_samples (f: ( unit ->  t) ) (li:int ) (stp:float) (ep:int) =

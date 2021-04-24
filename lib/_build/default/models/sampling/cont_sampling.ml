@@ -8,7 +8,7 @@ let f1 () =
 ;;
 
 
-let f2 () = 
+(* let f2 () = 
 	let* x1 = beta 1. 1. in
 	let v1 = 
 	if((get x1) > 0.5) then
@@ -16,9 +16,9 @@ let f2 () =
 	else
 		(mk 0.0)
 	in v1
-;;
+;; *)
 
-let x = get_samples f2 5 0.02 5000 in
+let x = get_samples f1 5 0.02 5000 in
 print_statistics x;
 print_to_file x "./cont_samples.txt";
 
