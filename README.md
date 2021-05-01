@@ -38,7 +38,8 @@ Here to simulate a simple linear classifier we say that a correctly classified p
 
 ### Auto-Regressive Models
 
-We use the autoregressive model described [here](https://mc-stan.org/docs/2_26/stan-users-guide/autoregressive-section.html). We generate data using alpha = 0.5 and beta = 1.03. As can be seen we are able to approximate both to a considerable extent. The plot on the left shows the predictions of alpha while those on the right show predictions for beta. 
+We use the autoregressive model described [here](https://mc-stan.org/docs/2_26/stan-users-guide/autoregressive-section.html). We generate data using alpha = 0.5 and beta = 1.03. As can be seen we are able to approximate both to a considerable extent. The plot below shows the predictions of alpha. 
 
 ![](https://github.com/Arnhav-Datar/EffPPL/blob/main/results/time-series/autoreg_alpha.png?raw=true)
+The plot below shows the predictions of beta. 
 ![](https://github.com/Arnhav-Datar/EffPPL/blob/main/results/time-series/autoreg_beta.png?raw=true)
