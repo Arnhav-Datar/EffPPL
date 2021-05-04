@@ -2,11 +2,11 @@ open Effppl.Infer;;
 open Effppl.Print;; 
 
 let f1 () =
-	let* x = beta 1. 1. in 
+	let* x = uniform 0. 1. in 
 
-	let* x1 = beta 1. 1. in 
-	let* x2 = beta 1. 1. in 
-	let* x3 = beta 1. 1. in 
+	let* x1 = uniform 0. 1. in 
+	let* x2 = uniform 0. 1. in 
+	let* x3 = uniform 0. 1. in 
 
 	let x1' = if((get x) > (get x1)) then 1.0 else 0.0 in 
 	let x2' = if((get x) > (get x2)) then 1.0 else 0.0 in 

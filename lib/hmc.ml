@@ -45,6 +45,8 @@ module type S = sig
 	val chi2' : t -> t
 	val chi2 : float -> t
 
+	val uniform : float -> float -> t
+
 	val get : t -> float
 	val get_der : ( unit ->  t) -> float list -> (float * t list)
 	val get_val : ( unit ->  t) -> float list -> (float)
@@ -499,6 +501,8 @@ struct
  	let beta a b = 
 		beta' (mk a) (mk b)
 
+	
+
  	let gamma' k t = 
 		perform (Gamma(k,t))
 	let gamma k t = 
@@ -828,6 +832,12 @@ struct
 		perform (Gamma( k /. (mk 2.0) , mk 2.0) )
 	let chi2 k =
 		chi2' (mk k)
+
+	let uniform st en = 
+		if(st = 0.0 && en = 1.0) then
+			(beta 1. 1.)
+		else
+			(mk st) +. ((mk (Float.sub en st)) *. (beta 1. 1.))
 
   	let (let*) m f = 
   		perform (Leet(m,f))
